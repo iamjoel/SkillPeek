@@ -21,13 +21,16 @@ import {
   Upload,
   Workflow,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { trpc, trpcClient } from "@/utils/trpc";
 
 const ACCEPTED_FILE_PATTERN =
   /\.(md|mdx|txt|json|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs)$/i;
+
+let mermaidPromise: Promise<(typeof import("mermaid"))["default"]> | null = null;
+let mermaidInitialized = false;
 
 type UploadedSkillFile = {
   path: string;
@@ -93,6 +96,49 @@ function pickUploadLabel(files: UploadedSkillFile[]) {
   }
 
   return firstRelativePath.split("/")[0] || "Uploaded Skill";
+}
+
+async function getMermaid() {
+  if (!mermaidPromise) {
+    mermaidPromise = import("mermaid").then((module) => {
+      const mermaid = module.default;
+
+      if (!mermaidInitialized) {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: "base",
+          themeVariables: {
+            background: "#020617",
+            primaryColor: "#0f172a",
+            primaryTextColor: "#e2e8f0",
+            primaryBorderColor: "#334155",
+            lineColor: "#60a5fa",
+            secondaryColor: "#111827",
+            secondaryTextColor: "#e2e8f0",
+            secondaryBorderColor: "#475569",
+            tertiaryColor: "#1e293b",
+            tertiaryTextColor: "#e2e8f0",
+            tertiaryBorderColor: "#f59e0b",
+            clusterBkg: "#0f172a",
+            clusterBorder: "#334155",
+            edgeLabelBackground: "#0f172a",
+            fontFamily: "IBM Plex Sans",
+          },
+          flowchart: {
+            curve: "basis",
+            htmlLabels: true,
+            useMaxWidth: true,
+          },
+        });
+        mermaidInitialized = true;
+      }
+
+      return mermaid;
+    });
+  }
+
+  return mermaidPromise;
 }
 
 export default function SkillIntakeWorkbench() {
@@ -556,6 +602,8 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
 
   return (
     <div className="grid gap-4">
+      <MermaidPanel mermaid={feature.mermaid} description="功能流程 Mermaid" />
+
       <div className="grid gap-4 md:grid-cols-2">
         <InfoList title="Trigger Conditions" items={feature.trigger_conditions} emptyLabel="未给出。"/>
         <InfoList
@@ -602,8 +650,6 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
       </div>
 
       <InfoList title="Assumptions" items={feature.assumptions} emptyLabel="没有额外假设。"/>
-
-      <MermaidCard mermaid={feature.mermaid} description="功能流程 Mermaid" />
     </div>
   );
 }
@@ -641,13 +687,60 @@ function SecurityTab({ result }: { result: SkillAnalysisResult }) {
         />
         <InfoList title="Notes" items={safety.notes} emptyLabel="没有额外备注。"/>
       </div>
-
-      <MermaidCard mermaid={safety.mermaid} description="安全审查 Mermaid" />
     </div>
   );
 }
 
-function MermaidCard({ mermaid, description }: { mermaid: string; description: string }) {
+function MermaidPanel({ mermaid, description }: { mermaid: string; description: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const renderId = useId().replace(/:/g, "");
+  const [svg, setSvg] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [isRendering, setIsRendering] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function renderMermaid() {
+      setIsRendering(true);
+      setError(null);
+
+      try {
+        const mermaidApi = await getMermaid();
+        const { svg: renderedSvg, bindFunctions } = await mermaidApi.render(
+          `skillpeek-mermaid-${renderId}`,
+          mermaid,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setSvg(renderedSvg);
+        setIsRendering(false);
+
+        queueMicrotask(() => {
+          if (!cancelled && containerRef.current && bindFunctions) {
+            bindFunctions(containerRef.current);
+          }
+        });
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        setError(err instanceof Error ? err.message : "Mermaid render failed");
+        setIsRendering(false);
+      }
+    }
+
+    void renderMermaid();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mermaid, renderId]);
+
   return (
     <Card className="border border-white/8 bg-black/18 text-slate-100">
       <CardHeader className="border-b border-white/8">
@@ -669,9 +762,24 @@ function MermaidCard({ mermaid, description }: { mermaid: string; description: s
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <pre className="overflow-x-auto border border-sky-400/12 bg-slate-950/90 p-4 font-mono text-[12px] leading-6 text-sky-100">
-          {mermaid}
-        </pre>
+        <div className="border border-white/8 bg-slate-950/60 p-3">
+          {isRendering ? (
+            <div className="flex min-h-56 items-center justify-center text-sm text-slate-400">
+              <LoaderCircle className="mr-2 size-4 animate-spin" />
+              正在渲染 Mermaid
+            </div>
+          ) : error ? (
+            <div className="min-h-56 p-3 text-sm leading-6 text-rose-300">
+              Mermaid 渲染失败：{error}
+            </div>
+          ) : (
+            <div
+              ref={containerRef}
+              className="mermaid-preview overflow-x-auto [&_svg]:h-auto [&_svg]:min-w-full [&_svg]:max-w-none"
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          )}
+        </div>
       </CardContent>
     </Card>
   );

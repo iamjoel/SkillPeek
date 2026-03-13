@@ -10,3 +10,14 @@ code,
 pre {
   font-family: "JetBrains Mono", monospace;
 }
+
+.mermaid-preview svg {
+  display: block;
+  min-width: 100%;
+  height: auto;
+}
+
+.mermaid-preview :is(text, tspan, foreignObject, span) {
+  color: #e2e8f0;
+  fill: #e2e8f0;
+}
