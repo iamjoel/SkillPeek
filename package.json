@@ -1,0 +1,36 @@
+{
+  "name": "my-better-t-app",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "node ./scripts/dev.mjs",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:web": "pnpm --filter web start",
+    "dev:server": "pnpm --filter server dev",
+    "db:push": "turbo -F @my-better-t-app/db db:push",
+    "db:studio": "turbo -F @my-better-t-app/db db:studio",
+    "db:generate": "turbo -F @my-better-t-app/db db:generate",
+    "db:migrate": "turbo -F @my-better-t-app/db db:migrate",
+    "db:local": "turbo -F @my-better-t-app/db db:local",
+    "deploy": "turbo -F @my-better-t-app/infra deploy",
+    "destroy": "turbo -F @my-better-t-app/infra destroy"
+  },
+  "dependencies": {
+    "@my-better-t-app/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251213.0",
+    "@my-better-t-app/config": "workspace:*",
+    "@types/node": "catalog:",
+    "turbo": "^2.8.12",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@10.29.2"
+}
