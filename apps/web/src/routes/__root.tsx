@@ -20,11 +20,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "my-better-t-app",
+        title: "SkillPeek",
       },
       {
         name: "description",
-        content: "my-better-t-app is a web application",
+        content: "Upload a Skill or point to a repo URL to generate a structured flowchart document.",
       },
     ],
     links: [

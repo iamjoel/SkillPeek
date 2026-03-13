@@ -24,6 +24,19 @@ First, install the dependencies:
 pnpm install
 ```
 
+## AI Setup
+
+This app now uses Vercel AI SDK with Google's Gemini Flash model on the server side.
+
+Add the following variable to your server environment before running the app:
+
+```bash
+GOOGLE_GENERATIVE_AI_API_KEY=your_google_ai_key
+```
+
+The server currently calls `gemini-3-flash-preview` through `ai` + `@ai-sdk/google`.
+You can start from [apps/server/.env.example](/Users/joel/joel/SkillPeek/apps/server/.env.example) and [apps/web/.env.example](/Users/joel/joel/SkillPeek/apps/web/.env.example).
+
 ## Database Setup
 
 This project uses SQLite with Drizzle ORM.
@@ -50,6 +63,18 @@ pnpm run dev
 
 By default the web app starts at [http://localhost:3001](http://localhost:3001) and the API at [http://localhost:3000](http://localhost:3000).
 If either port is already in use, `pnpm run dev` will automatically pick the next available port and print the actual URLs in the terminal.
+
+## Skill Analysis Workflow
+
+The home page now acts as a Skill intake workbench:
+
+- Upload a `SKILL.md`, a skill folder, or related documentation files
+- Or paste a GitHub repo URL / GitHub file URL / direct text file URL
+- The app generates two analysis tabs:
+  - `功能`: purpose, triggers, inputs, prechecks, execution, failure paths, outputs
+  - `安全`: metadata review, permission scope, red flags, trust signals, blocked capabilities
+
+Both tabs include Mermaid output generated from the structured analysis.
 
 ## UI Customization
 

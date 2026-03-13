@@ -11,11 +11,13 @@
   },
   "scripts": {},
   "dependencies": {
+    "@ai-sdk/google": "^3.0.43",
     "@my-better-t-app/auth": "workspace:*",
     "@my-better-t-app/db": "workspace:*",
     "@my-better-t-app/env": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
+    "ai": "^6.0.116",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },

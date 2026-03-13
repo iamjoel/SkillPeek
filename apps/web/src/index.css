@@ -1,1 +1,12 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "@my-better-t-app/ui/globals.css";
+
+html,
+body {
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+code,
+pre {
+  font-family: "JetBrains Mono", monospace;
+}
