@@ -9,9 +9,8 @@ import {
 import { Input } from "@my-better-t-app/ui/components/input";
 import { Label } from "@my-better-t-app/ui/components/label";
 import { cn } from "@my-better-t-app/ui/lib/utils";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   Copy,
   FolderSearch,
   Link2,
@@ -24,7 +23,7 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { trpc, trpcClient } from "@/utils/trpc";
+import { trpcClient } from "@/utils/trpc";
 
 const ACCEPTED_FILE_PATTERN =
   /\.(md|mdx|txt|json|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs)$/i;
@@ -156,8 +155,6 @@ export default function SkillIntakeWorkbench() {
     folderInputRef.current?.setAttribute("directory", "");
   }, []);
 
-  const healthCheck = useQuery(trpc.healthCheck.queryOptions());
-
   const analyzeSkill = useMutation({
     mutationFn: (input: Parameters<typeof trpcClient.analyzeSkill.mutate>[0]) => {
       return trpcClient.analyzeSkill.mutate(input);
@@ -261,59 +258,8 @@ export default function SkillIntakeWorkbench() {
                 skill-vetter 的思路做元数据、权限范围、红旗内容和可信度审查。
               </p>
             </div>
-            <div className="grid gap-3 text-xs text-slate-300 sm:grid-cols-3">
-              <div className="border border-white/10 bg-slate-950/40 p-3">
-                <div className="mb-2 inline-flex items-center gap-2 text-[11px] tracking-[0.2em] uppercase text-slate-400">
-                  <Workflow className="size-3.5" />
-                  Function
-                </div>
-                <p>由模型抽取 purpose、trigger、inputs、prechecks、execution、failure 和 outputs。</p>
-              </div>
-              <div className="border border-white/10 bg-slate-950/40 p-3">
-                <div className="mb-2 inline-flex items-center gap-2 text-[11px] tracking-[0.2em] uppercase text-slate-400">
-                  <Shield className="size-3.5" />
-                  Safety
-                </div>
-                <p>按 skill-vetter 流程检查权限范围、红旗信号、可信度与阻断能力。</p>
-              </div>
-              <div className="border border-white/10 bg-slate-950/40 p-3">
-                <div className="mb-2 inline-flex items-center gap-2 text-[11px] tracking-[0.2em] uppercase text-slate-400">
-                  <Link2 className="size-3.5" />
-                  Gemini
-                </div>
-                <p>服务端使用 Vercel AI SDK + Gemini 3 Flash Preview 输出结构化结果和 Mermaid。</p>
-              </div>
-            </div>
           </div>
-          <div className="grid gap-3 border border-white/10 bg-slate-950/45 p-4 text-xs text-slate-300 md:self-start">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-[11px] tracking-[0.2em] uppercase text-slate-500">API Status</div>
-                <div className="mt-1 text-lg font-medium text-white">
-                  {healthCheck.isLoading ? "Checking" : healthCheck.data ? "Connected" : "Unavailable"}
-                </div>
-              </div>
-              <div
-                className={`size-3 rounded-full ${healthCheck.data ? "bg-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)]" : "bg-rose-400 shadow-[0_0_16px_rgba(251,113,133,0.75)]"}`}
-              />
-            </div>
-            <div className="grid gap-2 border-t border-white/10 pt-3">
-              <div className="flex items-center justify-between gap-3">
-                <span>Source modes</span>
-                <span className="font-mono text-slate-100">upload / repo</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span>Model</span>
-                <span className="font-mono text-slate-100">
-                  {result?.source.model ?? "gemini-3-flash-preview"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span>Tabs</span>
-                <span className="font-mono text-slate-100">功能 / 安全</span>
-              </div>
-            </div>
-          </div>
+          <div className="hidden md:block" />
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.02fr_1.18fr]">
@@ -523,35 +469,10 @@ export default function SkillIntakeWorkbench() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                      <div className="grid gap-3 border border-white/8 bg-white/3 p-4">
-                        <div className="text-[11px] tracking-[0.18em] uppercase text-slate-500">Skill</div>
-                        <h2 className="text-2xl font-semibold tracking-[-0.03em] text-white">
-                          {result.skill_name}
-                        </h2>
-                        <p className="text-sm leading-7 text-slate-300">
-                          {result.feature_analysis.summary}
-                        </p>
-                      </div>
-                      <div className="grid gap-3 border border-white/8 bg-white/3 p-4">
-                        <div className="text-[11px] tracking-[0.18em] uppercase text-slate-500">
-                          Safety Verdict
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-white">
-                          <AlertTriangle
-                            className={cn(
-                              "size-4",
-                              riskLevel === "unsafe"
-                                ? "text-rose-300"
-                                : riskLevel === "caution"
-                                  ? "text-amber-300"
-                                  : "text-emerald-300",
-                            )}
-                          />
-                          {result.safety_analysis.verdict}
-                        </div>
-                        <div className="text-xs leading-6 text-slate-400">{result.language_note}</div>
-                      </div>
+                    <div className="border border-white/8 bg-white/3 px-4 py-3 text-sm leading-7 text-slate-300">
+                      <span className="font-semibold text-white">{result.skill_name}</span>
+                      <span className="text-slate-400"> · </span>
+                      {result.feature_analysis.summary}
                     </div>
 
                     <div className="inline-flex w-fit border border-white/10 bg-black/20 p-1">
