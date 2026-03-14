@@ -20,7 +20,7 @@ import {
   Upload,
   Workflow,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { type DragEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { trpcClient } from "@/utils/trpc";
@@ -35,6 +35,10 @@ type UploadedSkillFile = {
   path: string;
   content: string;
   size: number;
+};
+
+type DataTransferItemWithEntry = DataTransferItem & {
+  webkitGetAsEntry?: () => FileSystemEntry | null;
 };
 
 type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSkill.mutate>>;
@@ -145,15 +149,10 @@ export default function SkillIntakeWorkbench() {
   const [selectedFiles, setSelectedFiles] = useState<UploadedSkillFile[]>([]);
   const [uploadLabel, setUploadLabel] = useState("Uploaded Skill");
   const [isReadingFiles, setIsReadingFiles] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"feature" | "security">("feature");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    folderInputRef.current?.setAttribute("webkitdirectory", "");
-    folderInputRef.current?.setAttribute("directory", "");
-  }, []);
 
   const analyzeSkill = useMutation({
     mutationFn: (input: Parameters<typeof trpcClient.analyzeSkill.mutate>[0]) => {
@@ -167,14 +166,14 @@ export default function SkillIntakeWorkbench() {
     },
   });
 
-  async function loadFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) {
+  async function normalizeFiles(files: File[]) {
+    if (files.length === 0) {
       return;
     }
 
-    const files = Array.from(fileList).filter((file) => ACCEPTED_FILE_PATTERN.test(file.name));
+    const readableFiles = files.filter((file) => ACCEPTED_FILE_PATTERN.test(file.name));
 
-    if (files.length === 0) {
+    if (readableFiles.length === 0) {
       toast.error("没有找到可读的文本文件。请上传 `SKILL.md`、README 或相关文档。");
       return;
     }
@@ -183,7 +182,7 @@ export default function SkillIntakeWorkbench() {
 
     try {
       const uploaded = await Promise.all(
-        files.slice(0, 48).map(async (file) => {
+        readableFiles.slice(0, 48).map(async (file) => {
           const content = await file.text();
           return {
             path: file.webkitRelativePath || file.name,
@@ -199,6 +198,93 @@ export default function SkillIntakeWorkbench() {
     } finally {
       setIsReadingFiles(false);
     }
+  }
+
+  async function loadFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) {
+      return;
+    }
+
+    await normalizeFiles(Array.from(fileList));
+  }
+
+  function readFileEntry(entry: FileSystemFileEntry) {
+    return new Promise<File>((resolve, reject) => {
+      entry.file(resolve, reject);
+    });
+  }
+
+  function readDirectoryEntries(directory: FileSystemDirectoryEntry) {
+    const reader = directory.createReader();
+    const entries: FileSystemEntry[] = [];
+
+    return new Promise<FileSystemEntry[]>((resolve, reject) => {
+      const readBatch = () => {
+        reader.readEntries(
+          (batch) => {
+            if (batch.length === 0) {
+              resolve(entries);
+              return;
+            }
+
+            entries.push(...batch);
+            readBatch();
+          },
+          (error) => reject(error),
+        );
+      };
+
+      readBatch();
+    });
+  }
+
+  async function flattenEntry(entry: FileSystemEntry, parentPath = ""): Promise<File[]> {
+    const currentPath = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+
+    if (entry.isFile) {
+      const file = await readFileEntry(entry as FileSystemFileEntry);
+      const pathAwareFile = new File([file], file.name, {
+        type: file.type,
+        lastModified: file.lastModified,
+      });
+
+      Object.defineProperty(pathAwareFile, "webkitRelativePath", {
+        value: currentPath,
+        configurable: true,
+      });
+
+      return [pathAwareFile];
+    }
+
+    if (entry.isDirectory) {
+      const children = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
+      const nestedFiles = await Promise.all(
+        children.map((child) => flattenEntry(child, currentPath)),
+      );
+
+      return nestedFiles.flat();
+    }
+
+    return [];
+  }
+
+  async function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+
+    const items = Array.from(event.dataTransfer.items || []) as DataTransferItemWithEntry[];
+    const entries = items
+      .map((item) => item.webkitGetAsEntry?.() ?? null)
+      .filter((entry): entry is FileSystemEntry => entry !== null);
+
+    if (entries.length > 0) {
+      const droppedFiles = await Promise.all(entries.map((entry) => flattenEntry(entry)));
+      await normalizeFiles(droppedFiles.flat());
+
+      return;
+    }
+
+    await loadFiles(event.dataTransfer.files);
   }
 
   async function submitUpload() {
@@ -262,20 +348,50 @@ export default function SkillIntakeWorkbench() {
               <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="text-lg text-white">输入</CardTitle>
                 <CardDescription className="text-sm text-slate-400">
-                  先上传文件，或者输入一个 GitHub repo 地址。
+                  拖放文件或文件夹，或者输入一个 GitHub repo 地址。
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6 pt-5">
-                <div className="grid gap-3 border border-dashed border-sky-400/30 bg-sky-500/6 p-4">
+                <div
+                  className={cn(
+                    "grid gap-4 border border-dashed p-5 transition-colors",
+                    isDragging
+                      ? "border-sky-300 bg-sky-400/12"
+                      : "border-sky-400/30 bg-sky-500/6",
+                  )}
+                  onDragEnter={(event) => {
+                    event.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    if (event.currentTarget === event.target) {
+                      setIsDragging(false);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    void handleDrop(event);
+                  }}
+                >
                   <div className="flex items-center gap-2 text-sm font-medium text-white">
                     <Upload className="size-4 text-sky-300" />
-                    上传 Skill 文件
+                    上传内容
+                  </div>
+                  <div className="grid gap-2">
+                    <p className="text-sm leading-6 text-slate-300">
+                      把 Skill 文件或整个文件夹拖到这里。
+                    </p>
+                    <p className="text-xs text-slate-500">也可以点击下面按钮选择文件。</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      variant="outline"
-                      className="border-sky-400/30 bg-sky-400/8 text-sky-50 hover:bg-sky-400/16"
+                      size="lg"
+                      className="bg-sky-500 text-slate-950 hover:bg-sky-400"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isReadingFiles}
                     >
@@ -284,17 +400,7 @@ export default function SkillIntakeWorkbench() {
                       ) : (
                         <Upload className="size-4" />
                       )}
-                      选择文件
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
-                      onClick={() => folderInputRef.current?.click()}
-                      disabled={isReadingFiles}
-                    >
-                      <FolderSearch className="size-4" />
-                      选择目录
+                      添加内容
                     </Button>
                   </div>
                   <input
@@ -307,30 +413,6 @@ export default function SkillIntakeWorkbench() {
                       event.target.value = "";
                     }}
                   />
-                  <input
-                    ref={folderInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      void loadFiles(event.target.files);
-                      event.target.value = "";
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="mt-1 bg-sky-500 text-slate-950 hover:bg-sky-400"
-                    onClick={() => void submitUpload()}
-                    disabled={isReadingFiles || analyzeSkill.isPending || selectedFiles.length === 0}
-                  >
-                    {analyzeSkill.isPending ? (
-                      <LoaderCircle className="size-4 animate-spin" />
-                    ) : (
-                      <Workflow className="size-4" />
-                    )}
-                    开始分析
-                  </Button>
                 </div>
 
                 <div className="grid gap-3 border border-white/8 bg-white/3 p-4">
@@ -365,6 +447,21 @@ export default function SkillIntakeWorkbench() {
                     开始分析
                   </Button>
                 </div>
+
+                <Button
+                  type="button"
+                  size="lg"
+                  className="bg-sky-500 text-slate-950 hover:bg-sky-400"
+                  onClick={() => void submitUpload()}
+                  disabled={isReadingFiles || analyzeSkill.isPending || selectedFiles.length === 0}
+                >
+                  {analyzeSkill.isPending ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : (
+                    <Workflow className="size-4" />
+                  )}
+                  开始分析
+                </Button>
 
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between text-[11px] tracking-[0.18em] uppercase text-slate-500">
