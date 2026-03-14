@@ -80,18 +80,6 @@ const featureStageLabels: Array<{
     },
   ];
 
-function humanFileSize(size: number) {
-  if (size < 1024) {
-    return `${size} B`;
-  }
-
-  if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function pickUploadLabel(files: UploadedSkillFile[]) {
   const firstRelativePath = files.find((file) => file.path.includes("/"))?.path;
   if (!firstRelativePath) {
@@ -146,8 +134,6 @@ async function getMermaid() {
 
 export default function SkillIntakeWorkbench() {
   const [repoUrl, setRepoUrl] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<UploadedSkillFile[]>([]);
-  const [uploadLabel, setUploadLabel] = useState("Uploaded Skill");
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"feature" | "security">("feature");
@@ -165,6 +151,23 @@ export default function SkillIntakeWorkbench() {
       toast.error(error.message);
     },
   });
+
+  async function startUploadAnalysis(uploaded: UploadedSkillFile[]) {
+    const label = pickUploadLabel(uploaded);
+
+    await analyzeSkill.mutateAsync({
+      source: {
+        kind: "upload",
+        label,
+        files: uploaded.map(({ path, content }) => ({
+          path,
+          content,
+        })),
+      },
+      outputLanguage: "zh",
+      requestLanguage: "zh",
+    });
+  }
 
   async function normalizeFiles(files: File[]) {
     if (files.length === 0) {
@@ -192,9 +195,8 @@ export default function SkillIntakeWorkbench() {
         }),
       );
 
-      setSelectedFiles(uploaded);
-      setUploadLabel(pickUploadLabel(uploaded));
-      toast.success(`已载入 ${uploaded.length} 个文件，准备分析。`);
+      toast.success(`已读取 ${uploaded.length} 个文件，正在开始分析。`);
+      await startUploadAnalysis(uploaded);
     } finally {
       setIsReadingFiles(false);
     }
@@ -287,26 +289,6 @@ export default function SkillIntakeWorkbench() {
     await loadFiles(event.dataTransfer.files);
   }
 
-  async function submitUpload() {
-    if (selectedFiles.length === 0) {
-      toast.error("请先上传一个 Skill 文件或目录。");
-      return;
-    }
-
-    await analyzeSkill.mutateAsync({
-      source: {
-        kind: "upload",
-        label: uploadLabel,
-        files: selectedFiles.map(({ path, content }) => ({
-          path,
-          content,
-        })),
-      },
-      outputLanguage: "zh",
-      requestLanguage: "zh",
-    });
-  }
-
   async function submitRepo() {
     if (!repoUrl.trim()) {
       toast.error("请输入 Skill 仓库地址。");
@@ -325,6 +307,14 @@ export default function SkillIntakeWorkbench() {
 
   const result = analyzeSkill.data;
   const riskLevel = result?.safety_analysis.risk_level ?? "safe";
+  const showResultPanel = analyzeSkill.isPending || Boolean(result);
+
+  function handleRetryUpload() {
+    analyzeSkill.reset();
+    setRepoUrl("");
+    setActiveTab("feature");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
     <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.22),_transparent_34%),radial-gradient(circle_at_78%_12%,_rgba(249,115,22,0.16),_transparent_24%),linear-gradient(180deg,_rgba(2,6,23,0.98),_rgba(2,8,23,1))]">
@@ -342,8 +332,9 @@ export default function SkillIntakeWorkbench() {
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr] xl:items-start">
-          <div>
+        <section className="grid gap-6">
+          {!showResultPanel ? (
+            <div className="mx-auto w-full max-w-3xl">
             <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
               <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="text-lg text-white">输入</CardTitle>
@@ -385,7 +376,7 @@ export default function SkillIntakeWorkbench() {
                     <p className="text-sm leading-6 text-slate-300">
                       把 Skill 文件或整个文件夹拖到这里。
                     </p>
-                    <p className="text-xs text-slate-500">也可以点击下面按钮选择文件。</p>
+                    <p className="text-xs text-slate-500">添加后会自动开始分析。</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -393,9 +384,9 @@ export default function SkillIntakeWorkbench() {
                       size="lg"
                       className="bg-sky-500 text-slate-950 hover:bg-sky-400"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={isReadingFiles}
+                      disabled={isReadingFiles || analyzeSkill.isPending}
                     >
-                      {isReadingFiles ? (
+                      {isReadingFiles || analyzeSkill.isPending ? (
                         <LoaderCircle className="size-4 animate-spin" />
                       ) : (
                         <Upload className="size-4" />
@@ -447,55 +438,13 @@ export default function SkillIntakeWorkbench() {
                     开始分析
                   </Button>
                 </div>
-
-                <Button
-                  type="button"
-                  size="lg"
-                  className="bg-sky-500 text-slate-950 hover:bg-sky-400"
-                  onClick={() => void submitUpload()}
-                  disabled={isReadingFiles || analyzeSkill.isPending || selectedFiles.length === 0}
-                >
-                  {analyzeSkill.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Workflow className="size-4" />
-                  )}
-                  开始分析
-                </Button>
-
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between text-[11px] tracking-[0.18em] uppercase text-slate-500">
-                    <span>Loaded Files</span>
-                    <span className="font-mono">{selectedFiles.length}</span>
-                  </div>
-                  {selectedFiles.length === 0 ? (
-                    <div className="border border-white/6 bg-black/15 px-3 py-2 text-xs text-slate-500">
-                      还没有选择文件
-                    </div>
-                  ) : (
-                    <div className="grid max-h-48 gap-2 overflow-y-auto border border-white/6 bg-black/15 p-2">
-                      {selectedFiles.map((file) => (
-                        <div
-                          key={file.path}
-                          className="flex items-center justify-between gap-3 border border-white/6 bg-white/3 px-3 py-2 text-xs"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-slate-200">{file.path}</div>
-                            <div className="mt-1 text-[11px] text-slate-500">{humanFileSize(file.size)}</div>
-                          </div>
-                          <div className="rounded-full border border-sky-400/20 bg-sky-400/8 px-2 py-0.5 text-[10px] tracking-[0.12em] uppercase text-sky-200">
-                            text
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          ) : null}
 
-          <div className="grid gap-6">
+          {showResultPanel ? (
+            <div className="mx-auto grid w-full max-w-6xl gap-6">
             <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
               <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="flex items-center justify-between gap-3 text-base text-white">
@@ -519,10 +468,19 @@ export default function SkillIntakeWorkbench() {
                     </span>
                   ) : null}
                 </CardTitle>
-                <CardDescription className="text-slate-400">
-                  {result
-                    ? `源: ${result.source.label} · 已分析 ${result.source.file_count} 个文件`
-                    : "分析后，这里会显示结果。"}
+                <CardDescription className="flex items-center justify-between gap-3 text-slate-400">
+                  <span>
+                    {result ? `源: ${result.source.label} · 已分析 ${result.source.file_count} 个文件` : "正在分析..."}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+                    onClick={handleRetryUpload}
+                  >
+                    再试上传
+                  </Button>
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6 pt-5">
@@ -532,9 +490,9 @@ export default function SkillIntakeWorkbench() {
                       <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
                         <Workflow className="size-5 text-sky-200" />
                       </div>
-                      <div className="text-xl font-medium text-white">分析后显示结果</div>
+                      <div className="text-xl font-medium text-white">正在分析</div>
                       <p className="text-sm leading-7 text-slate-400">
-                        这里会出现两个 tab：功能 和 安全。
+                        结果准备好后会显示功能和安全两个 tab。
                       </p>
                       <div className="mx-auto flex gap-2 text-xs text-slate-400">
                         <span className="border border-white/10 bg-black/20 px-3 py-1.5">功能</span>
@@ -586,7 +544,8 @@ export default function SkillIntakeWorkbench() {
                 )}
               </CardContent>
             </Card>
-          </div>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>
