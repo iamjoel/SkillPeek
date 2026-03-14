@@ -11,10 +11,31 @@ pre {
   font-family: "JetBrains Mono", monospace;
 }
 
+.mermaid-preview {
+  display: flex;
+  justify-content: center;
+}
+
 .mermaid-preview svg {
   display: block;
-  min-width: 100%;
   height: auto;
+}
+
+.mermaid-preview[data-size="inline"] {
+  max-height: 24rem;
+}
+
+.mermaid-preview[data-size="inline"] svg {
+  width: min(100%, 42rem);
+}
+
+.mermaid-preview[data-size="fullscreen"] {
+  min-height: min(70vh, 48rem);
+  align-items: flex-start;
+}
+
+.mermaid-preview[data-size="fullscreen"] svg {
+  width: min(100%, 88rem);
 }
 
 .mermaid-preview :is(text, tspan, foreignObject, span) {
