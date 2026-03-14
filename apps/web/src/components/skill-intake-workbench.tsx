@@ -7,16 +7,13 @@ import {
   CardTitle,
 } from "@my-better-t-app/ui/components/card";
 import { Input } from "@my-better-t-app/ui/components/input";
-import { Label } from "@my-better-t-app/ui/components/label";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import {
   Copy,
   FolderSearch,
-  Link2,
   LoaderCircle,
   Shield,
-  Sparkles,
   Upload,
   Workflow,
 } from "lucide-react";
@@ -136,6 +133,7 @@ export default function SkillIntakeWorkbench() {
   const [repoUrl, setRepoUrl] = useState("");
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [inputTab, setInputTab] = useState<"upload" | "repo">("upload");
   const [activeTab, setActiveTab] = useState<"feature" | "security">("feature");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -312,6 +310,7 @@ export default function SkillIntakeWorkbench() {
   function handleRetryUpload() {
     analyzeSkill.reset();
     setRepoUrl("");
+    setInputTab("upload");
     setActiveTab("feature");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -326,7 +325,7 @@ export default function SkillIntakeWorkbench() {
                 SkillPeek
               </h1>
               <p className="max-w-2xl text-sm leading-7 text-slate-300 md:text-base">
-                高效了解 Skill 的功能边界，并提前规避潜在安全风险。
+                了解 Skill 功能边界，评估 Skill 安全风险。
               </p>
             </div>
           </div>
@@ -334,216 +333,232 @@ export default function SkillIntakeWorkbench() {
 
         <section className="grid gap-6">
           {!showResultPanel ? (
-            <div className="mx-auto w-full max-w-3xl">
-            <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
-              <CardHeader className="border-b border-white/8 pb-5">
-                <CardTitle className="text-lg text-white">输入</CardTitle>
-                <CardDescription className="text-sm text-slate-400">
-                  拖放文件或文件夹，或者输入一个 GitHub repo 地址。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6 pt-5">
-                <div
-                  className={cn(
-                    "grid gap-4 border border-dashed p-5 transition-colors",
-                    isDragging
-                      ? "border-sky-300 bg-sky-400/12"
-                      : "border-sky-400/30 bg-sky-500/6",
-                  )}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault();
-                    if (event.currentTarget === event.target) {
-                      setIsDragging(false);
-                    }
-                  }}
-                  onDrop={(event) => {
-                    void handleDrop(event);
-                  }}
-                >
-                  <div className="flex items-center gap-2 text-sm font-medium text-white">
-                    <Upload className="size-4 text-sky-300" />
-                    上传内容
-                  </div>
-                  <div className="grid gap-2">
-                    <p className="text-sm leading-6 text-slate-300">
-                      把 Skill 文件或整个文件夹拖到这里。
-                    </p>
-                    <p className="text-xs text-slate-500">添加后会自动开始分析。</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
+            <div className="w-full">
+              <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+                <CardContent className="grid gap-6 p-6">
+                  <div className="inline-flex w-fit border border-white/10 bg-black/20 p-1">
+                    <button
                       type="button"
-                      size="lg"
-                      className="bg-sky-500 text-slate-950 hover:bg-sky-400"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isReadingFiles || analyzeSkill.isPending}
-                    >
-                      {isReadingFiles || analyzeSkill.isPending ? (
-                        <LoaderCircle className="size-4 animate-spin" />
-                      ) : (
-                        <Upload className="size-4" />
+                      className={cn(
+                        "px-4 py-2 text-sm transition-colors",
+                        inputTab === "upload"
+                          ? "bg-sky-500 text-slate-950"
+                          : "text-slate-300 hover:bg-white/6 hover:text-white",
                       )}
-                      添加内容
-                    </Button>
+                      onClick={() => setInputTab("upload")}
+                    >
+                      上传文件
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "px-4 py-2 text-sm transition-colors",
+                        inputTab === "repo"
+                          ? "bg-orange-400 text-slate-950"
+                          : "text-slate-300 hover:bg-white/6 hover:text-white",
+                      )}
+                      onClick={() => setInputTab("repo")}
+                    >
+                      GitHub Repo
+                    </button>
                   </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      void loadFiles(event.target.files);
-                      event.target.value = "";
-                    }}
-                  />
-                </div>
 
-                <div className="grid gap-3 border border-white/8 bg-white/3 p-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-white">
-                    <Link2 className="size-4 text-orange-300" />
-                    GitHub repo
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="repo-url" className="text-xs text-slate-400">
-                      GitHub URL
-                    </Label>
-                    <Input
-                      id="repo-url"
-                      value={repoUrl}
-                      onChange={(event) => setRepoUrl(event.target.value)}
-                      placeholder="https://github.com/owner/repo"
-                      className="h-11 border-white/10 bg-white/4 text-sm text-slate-50 placeholder:text-slate-500"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    size="lg"
-                    className="bg-orange-500 text-slate-950 hover:bg-orange-400"
-                    onClick={() => void submitRepo()}
-                    disabled={analyzeSkill.isPending || !repoUrl.trim()}
-                  >
-                    {analyzeSkill.isPending ? (
-                      <LoaderCircle className="size-4 animate-spin" />
-                    ) : (
-                      <FolderSearch className="size-4" />
-                    )}
-                    开始分析
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  {inputTab === "upload" ? (
+                    <div
+                      className={cn(
+                        "grid min-h-72 place-items-center border border-dashed p-6 text-center transition-colors",
+                        isDragging
+                          ? "border-sky-300 bg-sky-400/12"
+                          : "border-sky-400/30 bg-sky-500/6",
+                      )}
+                      onDragEnter={(event) => {
+                        event.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={(event) => {
+                        event.preventDefault();
+                        if (event.currentTarget === event.target) {
+                          setIsDragging(false);
+                        }
+                      }}
+                      onDrop={(event) => {
+                        void handleDrop(event);
+                      }}
+                    >
+                      <div className="grid gap-5">
+                        <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
+                          <Upload className="size-6 text-sky-300" />
+                        </div>
+                        <div className="grid gap-2">
+                          <p className="text-2xl font-medium tracking-[-0.03em] text-white">
+                            把要分析的 Skill 拖到这里
+                          </p>
+                        </div>
+                        <div className="flex justify-center">
+                          <Button
+                            type="button"
+                            size="lg"
+                            className="bg-sky-500 text-slate-950 hover:bg-sky-400"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isReadingFiles || analyzeSkill.isPending}
+                          >
+                            {isReadingFiles || analyzeSkill.isPending ? (
+                              <LoaderCircle className="size-4 animate-spin" />
+                            ) : (
+                              <Upload className="size-4" />
+                            )}
+                            点击上传
+                          </Button>
+                        </div>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => {
+                          void loadFiles(event.target.files);
+                          event.target.value = "";
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 border border-white/8 bg-white/3 p-5">
+                      <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                        <Input
+                          id="repo-url"
+                          value={repoUrl}
+                          onChange={(event) => setRepoUrl(event.target.value)}
+                          placeholder="https://github.com/owner/repo"
+                          className="h-11 border-white/10 bg-white/4 text-sm text-slate-50 placeholder:text-slate-500"
+                        />
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="h-11 bg-orange-500 px-6 text-slate-950 hover:bg-orange-400"
+                          onClick={() => void submitRepo()}
+                          disabled={analyzeSkill.isPending || !repoUrl.trim()}
+                        >
+                          {analyzeSkill.isPending ? (
+                            <LoaderCircle className="size-4 animate-spin" />
+                          ) : (
+                            <FolderSearch className="size-4" />
+                          )}
+                          开始分析
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           ) : null}
 
           {showResultPanel ? (
             <div className="mx-auto grid w-full max-w-6xl gap-6">
-            <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
-              <CardHeader className="border-b border-white/8 pb-5">
-                <CardTitle className="flex items-center justify-between gap-3 text-base text-white">
-                  <span className="flex items-center gap-2">
-                    <Workflow className="size-4 text-sky-300" />
-                    结果
-                  </span>
-                  {result ? (
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-2 border px-2.5 py-1 text-[11px] tracking-[0.18em] uppercase",
-                        riskLevel === "unsafe"
-                          ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
-                          : riskLevel === "caution"
-                            ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
-                            : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-                      )}
-                    >
-                      <Shield className="size-3.5" />
-                      {riskLevel}
+              <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+                <CardHeader className="border-b border-white/8 pb-5">
+                  <CardTitle className="flex items-center justify-between gap-3 text-base text-white">
+                    <span className="flex items-center gap-2">
+                      <Workflow className="size-4 text-sky-300" />
+                      结果
                     </span>
-                  ) : null}
-                </CardTitle>
-                <CardDescription className="flex items-center justify-between gap-3 text-slate-400">
-                  <span>
-                    {result ? `源: ${result.source.label} · 已分析 ${result.source.file_count} 个文件` : "正在分析..."}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
-                    onClick={handleRetryUpload}
-                  >
-                    再试上传
-                  </Button>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6 pt-5">
-                {!result ? (
-                  <div className="grid min-h-96 place-items-center border border-dashed border-white/10 bg-white/3 p-8 text-center">
-                    <div className="grid max-w-sm gap-4">
-                      <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
-                        <Workflow className="size-5 text-sky-200" />
-                      </div>
-                      <div className="text-xl font-medium text-white">正在分析</div>
-                      <p className="text-sm leading-7 text-slate-400">
-                        结果准备好后会显示功能和安全两个 tab。
-                      </p>
-                      <div className="mx-auto flex gap-2 text-xs text-slate-400">
-                        <span className="border border-white/10 bg-black/20 px-3 py-1.5">功能</span>
-                        <span className="border border-white/10 bg-black/20 px-3 py-1.5">安全</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="border border-white/8 bg-white/3 px-4 py-3 text-sm leading-7 text-slate-300">
-                      <span className="font-semibold text-white">{result.skill_name}</span>
-                      <span className="text-slate-400"> · </span>
-                      {result.feature_analysis.summary}
-                    </div>
-
-                    <div className="inline-flex w-fit border border-white/10 bg-black/20 p-1">
-                      <button
-                        type="button"
+                    {result ? (
+                      <span
                         className={cn(
-                          "px-4 py-2 text-sm transition-colors",
-                          activeTab === "feature"
-                            ? "bg-sky-500 text-slate-950"
-                            : "text-slate-300 hover:bg-white/6 hover:text-white",
+                          "inline-flex items-center gap-2 border px-2.5 py-1 text-[11px] tracking-[0.18em] uppercase",
+                          riskLevel === "unsafe"
+                            ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
+                            : riskLevel === "caution"
+                              ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
+                              : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
                         )}
-                        onClick={() => setActiveTab("feature")}
                       >
-                        功能
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          "px-4 py-2 text-sm transition-colors",
-                          activeTab === "security"
-                            ? "bg-amber-400 text-slate-950"
-                            : "text-slate-300 hover:bg-white/6 hover:text-white",
-                        )}
-                        onClick={() => setActiveTab("security")}
-                      >
-                        安全
-                      </button>
+                        <Shield className="size-3.5" />
+                        {riskLevel}
+                      </span>
+                    ) : null}
+                  </CardTitle>
+                  <CardDescription className="flex items-center justify-between gap-3 text-slate-400">
+                    <span>
+                      {result ? `源: ${result.source.label} · 已分析 ${result.source.file_count} 个文件` : "正在分析..."}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+                      onClick={handleRetryUpload}
+                    >
+                      再试上传
+                    </Button>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6 pt-5">
+                  {!result ? (
+                    <div className="grid min-h-96 place-items-center border border-dashed border-white/10 bg-white/3 p-8 text-center">
+                      <div className="grid max-w-sm gap-4">
+                        <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
+                          <Workflow className="size-5 text-sky-200" />
+                        </div>
+                        <div className="text-xl font-medium text-white">正在分析</div>
+                        <p className="text-sm leading-7 text-slate-400">
+                          结果准备好后会显示功能和安全两个 tab。
+                        </p>
+                        <div className="mx-auto flex gap-2 text-xs text-slate-400">
+                          <span className="border border-white/10 bg-black/20 px-3 py-1.5">功能</span>
+                          <span className="border border-white/10 bg-black/20 px-3 py-1.5">安全</span>
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <div className="border border-white/8 bg-white/3 px-4 py-3 text-sm leading-7 text-slate-300">
+                        <span className="font-semibold text-white">{result.skill_name}</span>
+                        <span className="text-slate-400"> · </span>
+                        {result.feature_analysis.summary}
+                      </div>
 
-                    {activeTab === "feature" ? (
-                      <FeatureTab result={result} />
-                    ) : (
-                      <SecurityTab result={result} />
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                      <div className="inline-flex w-fit border border-white/10 bg-black/20 p-1">
+                        <button
+                          type="button"
+                          className={cn(
+                            "px-4 py-2 text-sm transition-colors",
+                            activeTab === "feature"
+                              ? "bg-sky-500 text-slate-950"
+                              : "text-slate-300 hover:bg-white/6 hover:text-white",
+                          )}
+                          onClick={() => setActiveTab("feature")}
+                        >
+                          功能
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(
+                            "px-4 py-2 text-sm transition-colors",
+                            activeTab === "security"
+                              ? "bg-amber-400 text-slate-950"
+                              : "text-slate-300 hover:bg-white/6 hover:text-white",
+                          )}
+                          onClick={() => setActiveTab("security")}
+                        >
+                          安全
+                        </button>
+                      </div>
+
+                      {activeTab === "feature" ? (
+                        <FeatureTab result={result} />
+                      ) : (
+                        <SecurityTab result={result} />
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           ) : null}
         </section>
