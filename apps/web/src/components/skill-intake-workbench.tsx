@@ -44,37 +44,37 @@ const featureStageLabels: Array<{
   title: string;
   hint: string;
 }> = [
-  {
-    key: "trigger",
-    title: "Trigger",
-    hint: "什么时候应该调用这个 Skill",
-  },
-  {
-    key: "input_parsing",
-    title: "Input Parsing",
-    hint: "需要读取和整理哪些输入",
-  },
-  {
-    key: "prechecks",
-    title: "Prechecks",
-    hint: "执行前必须确认的条件",
-  },
-  {
-    key: "execution",
-    title: "Execution",
-    hint: "主流程的关键步骤",
-  },
-  {
-    key: "failure_paths",
-    title: "Failure Paths",
-    hint: "失败时如何反馈或降级",
-  },
-  {
-    key: "outputs",
-    title: "Outputs",
-    hint: "最终返回给用户什么",
-  },
-];
+    {
+      key: "trigger",
+      title: "Trigger",
+      hint: "什么时候应该调用这个 Skill",
+    },
+    {
+      key: "input_parsing",
+      title: "Input Parsing",
+      hint: "需要读取和整理哪些输入",
+    },
+    {
+      key: "prechecks",
+      title: "Prechecks",
+      hint: "执行前必须确认的条件",
+    },
+    {
+      key: "execution",
+      title: "Execution",
+      hint: "主流程的关键步骤",
+    },
+    {
+      key: "failure_paths",
+      title: "Failure Paths",
+      hint: "失败时如何反馈或降级",
+    },
+    {
+      key: "outputs",
+      title: "Outputs",
+      hint: "最终返回给用户什么",
+    },
+  ];
 
 function humanFileSize(size: number) {
   if (size < 1024) {
@@ -242,45 +242,34 @@ export default function SkillIntakeWorkbench() {
 
   return (
     <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.22),_transparent_34%),radial-gradient(circle_at_78%_12%,_rgba(249,115,22,0.16),_transparent_24%),linear-gradient(180deg,_rgba(2,6,23,0.98),_rgba(2,8,23,1))]">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8">
-        <section className="grid gap-4 rounded-[28px] border border-white/10 bg-white/6 p-5 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_28px_120px_rgba(15,23,42,0.55)] backdrop-blur-xl md:grid-cols-[1.45fr_0.85fr] md:p-7">
-          <div className="grid gap-4">
-            <div className="inline-flex w-fit items-center gap-2 border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-[11px] font-medium tracking-[0.24em] uppercase text-sky-100">
-              <Sparkles className="size-3.5" />
-              Skill Intake Workbench
-            </div>
-            <div className="grid gap-3">
-              <h1 className="max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-balance md:text-5xl">
-                上传 Skill 或填写 repo 地址，生成 AI 版功能与安全双审查。
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-6 lg:px-8 lg:py-10">
+        <section className="rounded-[28px] border border-white/10 bg-white/6 p-6 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_28px_120px_rgba(15,23,42,0.55)] backdrop-blur-xl md:p-8">
+          <div className="grid max-w-4xl gap-5">
+            <div className="grid gap-4">
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-balance md:text-6xl">
+                SkillPeek
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
-                接入 Vercel AI SDK 与 Gemini Flash，结果拆成“功能”和“安全”两个视图。安全侧按
-                skill-vetter 的思路做元数据、权限范围、红旗内容和可信度审查。
+              <p className="max-w-2xl text-sm leading-7 text-slate-300 md:text-base">
+                高效了解 Skill 的功能边界，并提前规避潜在安全风险。
               </p>
             </div>
           </div>
-          <div className="hidden md:block" />
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.02fr_1.18fr]">
-          <div className="grid gap-6">
-            <Card className="border border-sky-500/15 bg-slate-950/85 text-slate-100 ring-sky-500/10">
-              <CardHeader className="border-b border-white/8">
-                <CardTitle className="flex items-center gap-2 text-base text-white">
-                  <Upload className="size-4 text-sky-300" />
-                  Upload Skill Files
-                </CardTitle>
-                <CardDescription className="text-slate-400">
-                  支持上传单个 `SKILL.md`、多个文档文件，或整个 skill 目录。
+        <section className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr] xl:items-start">
+          <div>
+            <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+              <CardHeader className="border-b border-white/8 pb-5">
+                <CardTitle className="text-lg text-white">输入</CardTitle>
+                <CardDescription className="text-sm text-slate-400">
+                  先上传文件，或者输入一个 GitHub repo 地址。
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="grid gap-3 border border-dashed border-sky-400/35 bg-sky-500/6 p-4">
-                  <div className="grid gap-1">
-                    <div className="text-sm font-medium text-white">把 Skill 资料送进 AI 分析流水线</div>
-                    <p className="text-xs leading-6 text-slate-400">
-                      推荐包含 `SKILL.md`、README、usage、workflow、prompt、guide 等文本文件。代码文件可带上，但分析会优先文档材料。
-                    </p>
+              <CardContent className="grid gap-6 pt-5">
+                <div className="grid gap-3 border border-dashed border-sky-400/30 bg-sky-500/6 p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-white">
+                    <Upload className="size-4 text-sky-300" />
+                    上传 Skill 文件
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -328,109 +317,94 @@ export default function SkillIntakeWorkbench() {
                       event.target.value = "";
                     }}
                   />
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="mt-1 bg-sky-500 text-slate-950 hover:bg-sky-400"
+                    onClick={() => void submitUpload()}
+                    disabled={isReadingFiles || analyzeSkill.isPending || selectedFiles.length === 0}
+                  >
+                    {analyzeSkill.isPending ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Workflow className="size-4" />
+                    )}
+                    开始分析
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 border border-white/8 bg-white/3 p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-white">
+                    <Link2 className="size-4 text-orange-300" />
+                    GitHub repo
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="repo-url" className="text-xs text-slate-400">
+                      GitHub URL
+                    </Label>
+                    <Input
+                      id="repo-url"
+                      value={repoUrl}
+                      onChange={(event) => setRepoUrl(event.target.value)}
+                      placeholder="https://github.com/owner/repo"
+                      className="h-11 border-white/10 bg-white/4 text-sm text-slate-50 placeholder:text-slate-500"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="bg-orange-500 text-slate-950 hover:bg-orange-400"
+                    onClick={() => void submitRepo()}
+                    disabled={analyzeSkill.isPending || !repoUrl.trim()}
+                  >
+                    {analyzeSkill.isPending ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <FolderSearch className="size-4" />
+                    )}
+                    开始分析
+                  </Button>
                 </div>
 
                 <div className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] tracking-[0.18em] uppercase text-slate-500">
-                      Loaded Files
-                    </div>
-                    <div className="font-mono text-[11px] text-slate-400">
-                      {selectedFiles.length} files
-                    </div>
+                  <div className="flex items-center justify-between text-[11px] tracking-[0.18em] uppercase text-slate-500">
+                    <span>Loaded Files</span>
+                    <span className="font-mono">{selectedFiles.length}</span>
                   </div>
-                  <div className="grid max-h-72 gap-2 overflow-y-auto border border-white/8 bg-black/20 p-2">
-                    {selectedFiles.length === 0 ? (
-                      <div className="p-3 text-xs leading-6 text-slate-500">
-                        还没有载入文件。上传后会优先分析 `SKILL.md`、README 和文档类文件。
-                      </div>
-                    ) : (
-                      selectedFiles.map((file) => (
+                  {selectedFiles.length === 0 ? (
+                    <div className="border border-white/6 bg-black/15 px-3 py-2 text-xs text-slate-500">
+                      还没有选择文件
+                    </div>
+                  ) : (
+                    <div className="grid max-h-48 gap-2 overflow-y-auto border border-white/6 bg-black/15 p-2">
+                      {selectedFiles.map((file) => (
                         <div
                           key={file.path}
-                          className="flex items-center justify-between gap-3 border border-white/6 bg-white/4 px-3 py-2 text-xs"
+                          className="flex items-center justify-between gap-3 border border-white/6 bg-white/3 px-3 py-2 text-xs"
                         >
                           <div className="min-w-0">
-                            <div className="truncate text-slate-100">{file.path}</div>
+                            <div className="truncate text-slate-200">{file.path}</div>
                             <div className="mt-1 text-[11px] text-slate-500">{humanFileSize(file.size)}</div>
                           </div>
                           <div className="rounded-full border border-sky-400/20 bg-sky-400/8 px-2 py-0.5 text-[10px] tracking-[0.12em] uppercase text-sky-200">
                             text
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  size="lg"
-                  className="bg-sky-500 text-slate-950 hover:bg-sky-400"
-                  onClick={() => void submitUpload()}
-                  disabled={isReadingFiles || analyzeSkill.isPending || selectedFiles.length === 0}
-                >
-                  {analyzeSkill.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <Workflow className="size-4" />
+                      ))}
+                    </div>
                   )}
-                  分析上传内容
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-orange-500/15 bg-slate-950/85 text-slate-100 ring-orange-500/10">
-              <CardHeader className="border-b border-white/8">
-                <CardTitle className="flex items-center gap-2 text-base text-white">
-                  <Link2 className="size-4 text-orange-300" />
-                  Analyze Repository URL
-                </CardTitle>
-                <CardDescription className="text-slate-400">
-                  当前支持 GitHub 仓库地址、GitHub 文件地址，以及直接指向文本文件的 URL。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="repo-url" className="text-slate-300">
-                    Repository URL
-                  </Label>
-                  <Input
-                    id="repo-url"
-                    value={repoUrl}
-                    onChange={(event) => setRepoUrl(event.target.value)}
-                    placeholder="https://github.com/owner/repo"
-                    className="h-11 border-white/10 bg-white/4 text-sm text-slate-50 placeholder:text-slate-500"
-                  />
-                  <p className="text-xs leading-6 text-slate-500">
-                    如果是整个 repo，会优先抓取 `SKILL.md`、README 和其它文档类文本文件，而不是盲扫全部代码。
-                  </p>
                 </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="bg-orange-500 text-slate-950 hover:bg-orange-400"
-                  onClick={() => void submitRepo()}
-                  disabled={analyzeSkill.isPending || !repoUrl.trim()}
-                >
-                  {analyzeSkill.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <FolderSearch className="size-4" />
-                  )}
-                  分析仓库地址
-                </Button>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6">
-            <Card className="border border-white/10 bg-slate-950/88 text-slate-100">
-              <CardHeader className="border-b border-white/8">
+            <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+              <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="flex items-center justify-between gap-3 text-base text-white">
                   <span className="flex items-center gap-2">
                     <Workflow className="size-4 text-sky-300" />
-                    AI Analysis Output
+                    结果
                   </span>
                   {result ? (
                     <span
@@ -451,20 +425,24 @@ export default function SkillIntakeWorkbench() {
                 <CardDescription className="text-slate-400">
                   {result
                     ? `源: ${result.source.label} · 已分析 ${result.source.file_count} 个文件`
-                    : "结果会分成“功能”和“安全”两个 tab 展示。"}
+                    : "分析后，这里会显示结果。"}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-5">
+              <CardContent className="grid gap-6 pt-5">
                 {!result ? (
-                  <div className="grid min-h-80 place-items-center border border-dashed border-white/10 bg-white/3 p-6 text-center">
-                    <div className="grid max-w-md gap-3">
-                      <div className="mx-auto inline-flex size-12 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
+                  <div className="grid min-h-96 place-items-center border border-dashed border-white/10 bg-white/3 p-8 text-center">
+                    <div className="grid max-w-sm gap-4">
+                      <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
                         <Workflow className="size-5 text-sky-200" />
                       </div>
-                      <div className="text-lg font-medium text-white">等待一个 Skill 输入源</div>
-                      <p className="text-sm leading-6 text-slate-400">
-                        上传 `SKILL.md` 或输入 GitHub repo 地址后，右侧会输出功能分析和安全审查结果。
+                      <div className="text-xl font-medium text-white">分析后显示结果</div>
+                      <p className="text-sm leading-7 text-slate-400">
+                        这里会出现两个 tab：功能 和 安全。
                       </p>
+                      <div className="mx-auto flex gap-2 text-xs text-slate-400">
+                        <span className="border border-white/10 bg-black/20 px-3 py-1.5">功能</span>
+                        <span className="border border-white/10 bg-black/20 px-3 py-1.5">安全</span>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -526,7 +504,7 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
       <MermaidPanel mermaid={feature.mermaid} description="功能流程 Mermaid" />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <InfoList title="Trigger Conditions" items={feature.trigger_conditions} emptyLabel="未给出。"/>
+        <InfoList title="Trigger Conditions" items={feature.trigger_conditions} emptyLabel="未给出。" />
         <InfoList
           title="Non-trigger Conditions"
           items={feature.non_trigger_conditions}
@@ -535,8 +513,8 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <InfoList title="Inputs" items={feature.inputs} emptyLabel="未给出。"/>
-        <InfoList title="Prechecks" items={feature.prechecks} emptyLabel="未给出。"/>
+        <InfoList title="Inputs" items={feature.inputs} emptyLabel="未给出。" />
+        <InfoList title="Prechecks" items={feature.prechecks} emptyLabel="未给出。" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -545,10 +523,10 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
           items={feature.execution_steps}
           emptyLabel="未给出。"
         />
-        <InfoList title="Failure Modes" items={feature.failure_modes} emptyLabel="未给出。"/>
+        <InfoList title="Failure Modes" items={feature.failure_modes} emptyLabel="未给出。" />
       </div>
 
-      <InfoList title="Outputs" items={feature.outputs} emptyLabel="未给出。"/>
+      <InfoList title="Outputs" items={feature.outputs} emptyLabel="未给出。" />
 
       <div className="grid gap-4 xl:grid-cols-2">
         {featureStageLabels.map((stage) => (
@@ -570,7 +548,7 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
         ))}
       </div>
 
-      <InfoList title="Assumptions" items={feature.assumptions} emptyLabel="没有额外假设。"/>
+      <InfoList title="Assumptions" items={feature.assumptions} emptyLabel="没有额外假设。" />
     </div>
   );
 }
@@ -580,7 +558,7 @@ function SecurityTab({ result }: { result: SkillAnalysisResult }) {
 
   return (
     <div className="grid gap-4">
-      <InfoList title="Findings" items={safety.findings} emptyLabel="没有额外发现。"/>
+      <InfoList title="Findings" items={safety.findings} emptyLabel="没有额外发现。" />
 
       <div className="grid gap-4 md:grid-cols-2">
         <InfoList
@@ -596,8 +574,8 @@ function SecurityTab({ result }: { result: SkillAnalysisResult }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <InfoList title="Red Flags" items={safety.red_flags} emptyLabel="未发现明显红旗。"/>
-        <InfoList title="Trust Signals" items={safety.trust_signals} emptyLabel="未给出。"/>
+        <InfoList title="Red Flags" items={safety.red_flags} emptyLabel="未发现明显红旗。" />
+        <InfoList title="Trust Signals" items={safety.trust_signals} emptyLabel="未给出。" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -606,7 +584,7 @@ function SecurityTab({ result }: { result: SkillAnalysisResult }) {
           items={safety.blocked_capabilities}
           emptyLabel="没有需要阻断的能力项。"
         />
-        <InfoList title="Notes" items={safety.notes} emptyLabel="没有额外备注。"/>
+        <InfoList title="Notes" items={safety.notes} emptyLabel="没有额外备注。" />
       </div>
     </div>
   );
