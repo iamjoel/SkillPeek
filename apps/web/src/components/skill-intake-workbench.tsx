@@ -13,39 +13,21 @@ import { useMutation } from "@tanstack/react-query";
 import {
   Background,
   BackgroundVariant,
-  Controls,
-  Handle,
   MarkerType,
-  Position,
   ReactFlow,
   type Edge,
   type Node,
-  type NodeProps,
-  type NodeTypes,
 } from "@xyflow/react";
 import {
-  CheckCheck,
-  CircleAlert,
   FolderSearch,
   LoaderCircle,
-  MoreHorizontal,
-  Orbit,
   Play,
   RotateCcw,
-  ShieldAlert,
   Shield,
-  Sparkles,
   Upload,
   Workflow,
 } from "lucide-react";
-import {
-  startTransition,
-  type DragEvent,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { trpcClient } from "@/utils/trpc";
@@ -65,27 +47,16 @@ type DataTransferItemWithEntry = DataTransferItem & {
 
 type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSkill.mutate>>;
 type FeatureAnalysis = SkillAnalysisResult["feature_analysis"];
-type FlowDemoState = "idle" | "running" | "done" | "warning" | "result";
-type FlowDemoNodeData = {
-  title: string;
-  detail: string;
-  state: FlowDemoState;
-};
-type FlowDemoStep = {
+type FlowExample = {
   id: string;
   title: string;
-  detail: string;
-};
-type FlowDemoExample = {
-  id: string;
-  name: string;
-  summary: string;
+  description: string;
+  output: string;
+  steps: string[];
   resultLabel: string;
-  resultValue: string;
-  outcome: "success" | "warning";
-  steps: FlowDemoStep[];
+  tone?: "default" | "warning";
 };
-type FlowDemoNode = Node<FlowDemoNodeData, "status">;
+type ExampleFlowNode = Node<{ label: string }>;
 
 const MOCK_SKILL_RESULT: SkillAnalysisResult = {
   status: "success",
@@ -160,20 +131,14 @@ const MOCK_SKILL_RESULT: SkillAnalysisResult = {
   },
 };
 
-const statusBadges = ["结构化输出", "流程可解释", "结果可预期"];
-
 const riskLevelLabels: Record<
   SkillAnalysisResult["safety_analysis"]["risk_level"],
   string
 > = {
   safe: "安全",
-  caution: "注意",
+  caution: "低风险",
   unsafe: "高风险",
 };
-
-const flowNodeTypes = {
-  status: FlowStatusNode,
-} satisfies NodeTypes;
 
 function pickUploadLabel(files: UploadedSkillFile[]) {
   const firstRelativePath = files.find((file) => file.path.includes("/"))?.path;
@@ -189,7 +154,6 @@ export default function SkillIntakeWorkbench() {
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [inputTab, setInputTab] = useState<"upload" | "repo">("upload");
-  const [activeTab, setActiveTab] = useState<"feature" | "security">("feature");
   const [showMockResult, setShowMockResult] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -197,9 +161,6 @@ export default function SkillIntakeWorkbench() {
   const analyzeSkill = useMutation({
     mutationFn: (input: Parameters<typeof trpcClient.analyzeSkill.mutate>[0]) => {
       return trpcClient.analyzeSkill.mutate(input);
-    },
-    onSuccess: () => {
-      setActiveTab("feature");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -364,17 +325,7 @@ export default function SkillIntakeWorkbench() {
   const result = analyzeSkill.isPending
     ? undefined
     : analyzeSkill.data ?? (showMockResult ? MOCK_SKILL_RESULT : undefined);
-  const riskLevel = result?.safety_analysis.risk_level ?? "safe";
   const showResultPanel = analyzeSkill.isPending || Boolean(result);
-
-  function handleRetryUpload() {
-    analyzeSkill.reset();
-    setRepoUrl("");
-    setShowMockResult(false);
-    setInputTab("upload");
-    setActiveTab("feature");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
 
   return (
     <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.22),_transparent_34%),radial-gradient(circle_at_78%_12%,_rgba(249,115,22,0.16),_transparent_24%),linear-gradient(180deg,_rgba(2,6,23,0.98),_rgba(2,8,23,1))]">
@@ -520,106 +471,19 @@ export default function SkillIntakeWorkbench() {
           ) : null}
 
           {showResultPanel ? (
-            <div className="mx-auto grid w-full max-w-6xl gap-6">
-              <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
-                <CardHeader className="border-b border-white/8 pb-5">
-                  <CardTitle className="flex items-center justify-between gap-3 text-base text-white">
-                    <span className="flex items-center gap-2">
-                      <Workflow className="size-4 text-sky-300" />
-                      结果
-                    </span>
-                    {result ? (
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-2 border px-2.5 py-1 text-[11px] tracking-[0.18em] uppercase",
-                          riskLevel === "unsafe"
-                            ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
-                            : riskLevel === "caution"
-                              ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
-                              : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-                        )}
-                      >
-                        <Shield className="size-3.5" />
-                        {riskLevelLabels[riskLevel]}
-                      </span>
-                    ) : null}
-                  </CardTitle>
-                  <CardDescription className="flex items-center justify-between gap-3 text-slate-400">
-                    <span>
-                      {result ? `源: ${result.source.label} · 已分析 ${result.source.file_count} 个文件` : "正在分析..."}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
-                      onClick={handleRetryUpload}
-                    >
-                      再试上传
-                    </Button>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-6 pt-5">
-                  {!result ? (
-                    <div className="grid min-h-96 place-items-center border border-dashed border-white/10 bg-white/3 p-8 text-center">
-                      <div className="grid max-w-sm gap-4">
-                        <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
-                          <Workflow className="size-5 text-sky-200" />
-                        </div>
-                        <div className="text-xl font-medium text-white">正在分析</div>
-                        <p className="text-sm leading-7 text-slate-400">
-                          结果准备好后会显示功能和安全两个 tab。
-                        </p>
-                        <div className="mx-auto flex gap-2 text-xs text-slate-400">
-                          <span className="border border-white/10 bg-black/20 px-3 py-1.5">功能</span>
-                          <span className="border border-white/10 bg-black/20 px-3 py-1.5">安全</span>
-                        </div>
-                      </div>
+            <div className="mx-auto grid w-full max-w-5xl gap-6">
+              {!result ? (
+                <div className="grid min-h-72 place-items-center rounded-[28px] border border-white/8 bg-slate-950/70 p-8 text-center">
+                  <div className="grid gap-3">
+                    <div className="mx-auto inline-flex size-12 items-center justify-center rounded-full bg-sky-400/10 text-sky-200">
+                      <Workflow className="size-5" />
                     </div>
-                  ) : (
-                    <>
-                      <div className="border border-white/8 bg-white/3 px-4 py-3 text-sm leading-7 text-slate-300">
-                        <span className="font-semibold text-white">{result.skill_name}</span>
-                        <span className="text-slate-400"> · </span>
-                        {result.feature_analysis.summary}
-                      </div>
-
-                      <div className="inline-flex w-fit border border-white/10 bg-black/20 p-1">
-                        <button
-                          type="button"
-                          className={cn(
-                            "px-4 py-2 text-sm transition-colors",
-                            activeTab === "feature"
-                              ? "bg-sky-500 text-slate-950"
-                              : "text-slate-300 hover:bg-white/6 hover:text-white",
-                          )}
-                          onClick={() => setActiveTab("feature")}
-                        >
-                          功能
-                        </button>
-                        <button
-                          type="button"
-                          className={cn(
-                            "px-4 py-2 text-sm transition-colors",
-                            activeTab === "security"
-                              ? "bg-amber-400 text-slate-950"
-                              : "text-slate-300 hover:bg-white/6 hover:text-white",
-                          )}
-                          onClick={() => setActiveTab("security")}
-                        >
-                          安全
-                        </button>
-                      </div>
-
-                      {activeTab === "feature" ? (
-                        <FeatureTab result={result} />
-                      ) : (
-                        <SecurityTab result={result} />
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                    <div className="text-lg font-medium text-white">正在分析</div>
+                  </div>
+                </div>
+              ) : (
+                <FeatureTab result={result} />
+              )}
             </div>
           ) : null}
         </section>
@@ -630,870 +494,372 @@ export default function SkillIntakeWorkbench() {
 
 function FeatureTab({ result }: { result: SkillAnalysisResult }) {
   const feature = result.feature_analysis;
-  const outputs = feature.outputs.slice(0, 4);
-
-  return (
-    <div className="grid gap-8">
-      <section className="relative overflow-hidden rounded-[32px] border border-cyan-400/12 bg-[linear-gradient(135deg,rgba(8,47,73,0.52),rgba(15,23,42,0.94)_45%,rgba(30,41,59,0.92))] p-6 text-white shadow-[0_24px_100px_rgba(6,182,212,0.12)] md:p-8">
-        <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.24),transparent_52%)]" />
-        <div className="relative grid gap-6">
-          <div className="grid gap-5">
-            <div className="flex flex-wrap gap-2">
-              {statusBadges.map((badge) => (
-                <span
-                  key={badge}
-                  className="rounded-full border border-cyan-300/18 bg-cyan-400/10 px-3 py-1 text-[11px] tracking-[0.18em] text-cyan-100"
-                >
-                  {badge}
-                </span>
-              ))}
-            </div>
-
-            <div className="grid gap-3">
-              <div className="text-sm tracking-[0.22em] text-cyan-100/70">技能名称</div>
-              <h2 className="max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-balance md:text-5xl">
-                {result.skill_name}
-              </h2>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <SummaryBlock
-                label="技能目的"
-                value={feature.skill_purpose}
-              />
-              <SummaryBlock
-                label="最终产物"
-                value={outputs[0] ?? "返回结构化结果，方便直接继续使用。"}
-              />
-            </div>
-          </div>
-
-          <SkillFlowShowcase feature={feature} />
-        </div>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-        <ShowcaseSection
-          eyebrow="如何工作"
-          title="从输入到生成，中间发生了什么"
-          description="把输入、校验和执行步骤拆开，便于快速理解 Skill 的运行方式。"
-        >
-          <div className="grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <TagCard
-                title="输入信息"
-                icon={<Orbit className="size-4 text-cyan-200" />}
-                items={feature.inputs}
-                emptyLabel="未给出输入要求。"
-              />
-              <ChecklistCard
-                title="校验项"
-                items={feature.prechecks}
-                emptyLabel="没有额外校验项。"
-              />
-            </div>
-            <TimelineCard
-              title="执行流程"
-              items={feature.execution_steps}
-              emptyLabel="未给出执行步骤。"
-            />
-            <MoreUsagePanel feature={feature} />
-          </div>
-        </ShowcaseSection>
-
-        <div className="grid gap-4">
-          <Card className="overflow-hidden border border-cyan-400/12 bg-[linear-gradient(180deg,rgba(8,47,73,0.22),rgba(15,23,42,0.94))] text-slate-100 shadow-[0_20px_70px_rgba(6,182,212,0.12)]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl text-white">输出结果</CardTitle>
-              <CardDescription className="text-sm leading-6 text-slate-300">
-                最终交付会以清晰、可继续处理的结果形式返回。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3">
-                {feature.outputs.map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-cyan-300/12 bg-cyan-400/8 p-4"
-                  >
-                    <div className="text-sm font-medium text-cyan-50">{item}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-2xl border border-white/8 bg-slate-950/70 p-4">
-                <div className="text-xs tracking-[0.2em] text-slate-500">交付说明</div>
-                <div className="mt-3 grid gap-3 text-sm leading-7 text-slate-300">
-                  <p>{result.language_note}</p>
-                  <p>{feature.summary}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border border-amber-400/16 bg-[linear-gradient(180deg,rgba(120,53,15,0.18),rgba(15,23,42,0.94))] text-slate-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-xl text-white">
-                <CircleAlert className="size-5 text-amber-200" />
-                常见失败情况
-              </CardTitle>
-              <CardDescription className="text-sm leading-6 text-slate-300">
-                这些情况通常意味着输入不足、结构冲突，或需要走兜底方案。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {feature.failure_modes.length === 0 ? (
-                <div className="rounded-2xl border border-white/8 bg-white/4 p-4 text-sm leading-6 text-slate-300">
-                  没有明显的失败模式，整体流程相对稳定。
-                </div>
-              ) : (
-                feature.failure_modes.map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-amber-300/14 bg-amber-400/8 p-4 text-sm leading-6 text-amber-50"
-                  >
-                    {item}
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function SecurityTab({ result }: { result: SkillAnalysisResult }) {
   const safety = result.safety_analysis;
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const intro = feature.summary;
+  const safetySummary = shortenText(
+    safety.verdict || safety.findings[0] || "仅处理内容整理",
+    20,
+  );
+  const safetyPoints = buildSafetyPoints(result);
+  const examples = buildFlowExamples(feature);
 
   return (
-    <div className="grid gap-4">
-      <InfoList title="审查结论" items={safety.findings} emptyLabel="没有额外发现。" />
+    <div className="grid gap-5 text-white">
+      <section className="grid gap-4 rounded-[28px] bg-slate-950/78 px-5 py-5 md:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid gap-2">
+            <h2 className="text-2xl font-semibold tracking-[-0.04em] md:text-3xl">
+              {result.skill_name}
+            </h2>
+            <p className="text-sm text-slate-300">{intro}</p>
+          </div>
+          <button
+            type="button"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors",
+              safety.risk_level === "unsafe"
+                ? "border-rose-300/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/16"
+                : safety.risk_level === "caution"
+                  ? "border-amber-300/25 bg-amber-400/10 text-amber-100 hover:bg-amber-400/16"
+                  : "border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/16",
+            )}
+            onClick={() => {
+              setShowSafetyModal(true);
+            }}
+          >
+            <Shield className="size-3.5" />
+            {riskLevelLabels[safety.risk_level]}
+          </button>
+        </div>
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <InfoList
-          title="元数据检查"
-          items={safety.metadata_review}
-          emptyLabel="未给出。"
-        />
-        <InfoList
-          title="权限范围"
-          items={safety.permission_scope}
-          emptyLabel="未给出。"
-        />
-      </div>
+      <section className="grid gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
+          <Workflow className="size-4 text-cyan-300" />
+          流程示例
+        </div>
+        <FlowExamplesSection examples={examples} />
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <InfoList title="风险信号" items={safety.red_flags} emptyLabel="未发现明显红旗。" />
-        <InfoList title="可信依据" items={safety.trust_signals} emptyLabel="未给出。" />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <InfoList
-          title="需要阻断的能力"
-          items={safety.blocked_capabilities}
-          emptyLabel="没有需要阻断的能力项。"
+      {showSafetyModal ? (
+        <SafetyModal
+          level={riskLevelLabels[safety.risk_level]}
+          summary={safetySummary}
+          points={safetyPoints}
+          onClose={() => {
+            setShowSafetyModal(false);
+          }}
         />
-        <InfoList title="补充说明" items={safety.notes} emptyLabel="没有额外备注。" />
-      </div>
+      ) : null}
     </div>
   );
 }
 
-function SkillFlowShowcase({ feature }: { feature: FeatureAnalysis }) {
-  const examples = buildFlowExamples(feature);
-  const [selectedExampleId, setSelectedExampleId] = useState(examples[0]?.id ?? "");
+function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
+  const [activeId, setActiveId] = useState(examples[0]?.id ?? "");
   const [runIndex, setRunIndex] = useState(-1);
   const [runState, setRunState] = useState<"idle" | "running" | "done">("idle");
-
-  const selectedExample = examples.find((example) => example.id === selectedExampleId) ?? examples[0];
-  const flowNodes = createFlowDemoNodes(selectedExample, runIndex, runState);
-  const flowEdges = createFlowDemoEdges(selectedExample, runIndex, runState);
-  const currentStep =
-    runState === "running" && runIndex >= 0 ? selectedExample.steps[runIndex] : undefined;
+  const activeExample = examples.find((example) => example.id === activeId) ?? examples[0];
 
   useEffect(() => {
-    if (runState !== "running" || !selectedExample) {
+    if (!activeExample || runState !== "running") {
       return;
     }
 
-    if (runIndex >= selectedExample.steps.length) {
+    if (runIndex >= activeExample.steps.length) {
       setRunState("done");
       return;
     }
 
     const timer = window.setTimeout(() => {
       setRunIndex((current) => current + 1);
-    }, 820);
+    }, 720);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [runIndex, runState, selectedExample]);
+  }, [activeExample, runIndex, runState]);
 
-  useEffect(() => {
-    startTransition(() => {
-      setSelectedExampleId(examples[0]?.id ?? "");
-      setRunIndex(-1);
-      setRunState("idle");
-    });
-  }, [feature.skill_name]);
-
-  if (!selectedExample) {
+  if (!activeExample) {
     return null;
   }
 
-  const runLabel =
-    runState === "running"
-      ? `正在运行 · ${currentStep?.title ?? "准备中"}`
-      : runState === "done"
-        ? selectedExample.outcome === "warning"
-          ? "已完成 · 已走回退路径"
-          : "已完成 · 已生成结果"
-        : "等待运行";
+  const { nodes, edges } = createExampleFlow(activeExample, runIndex, runState);
+  const currentStep =
+    runState === "running" && runIndex >= 0 ? activeExample.steps[runIndex] : undefined;
 
   return (
-    <div className="grid gap-5 rounded-[30px] border border-white/10 bg-slate-950/36 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-5">
-      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr] xl:items-start">
-        <div className="grid gap-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-cyan-100">
-            <Sparkles className="size-4" />
-            流程示例
+    <div className="grid gap-4 rounded-[28px] bg-slate-950/72 p-4 lg:grid-cols-[220px_1fr]">
+      <div className="grid gap-2">
+        {examples.map((example) => (
+          <button
+            key={example.id}
+            type="button"
+            className={cn(
+              "rounded-2xl px-4 py-3 text-left transition-colors",
+              example.id === activeExample.id
+                ? "bg-white/10 text-white"
+                : "bg-white/4 text-slate-300 hover:bg-white/8 hover:text-white",
+            )}
+            onClick={() => {
+              setActiveId(example.id);
+              setRunIndex(-1);
+              setRunState("idle");
+            }}
+          >
+            <div className="text-sm font-medium">{example.title}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid gap-1">
+            <div className="text-base font-medium text-white">{activeExample.title}</div>
+            <div className="text-sm text-slate-300">{activeExample.description}</div>
           </div>
-          <div className="max-w-xl text-sm leading-7 text-slate-300">
-            不用看抽象说明，直接运行 3 个典型路径，观察它如何读取输入、执行校验并返回结果。
-          </div>
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-            {examples.map((example) => (
-              <button
-                key={example.id}
-                type="button"
-                className={cn(
-                  "grid gap-2 rounded-[22px] border px-4 py-4 text-left transition-all",
-                  example.id === selectedExample.id
-                    ? "border-cyan-300/28 bg-cyan-400/12 shadow-[0_12px_40px_rgba(34,211,238,0.12)]"
-                    : "border-white/8 bg-white/4 hover:border-white/14 hover:bg-white/6",
-                )}
-                onClick={() => {
-                  startTransition(() => {
-                    setSelectedExampleId(example.id);
-                    setRunIndex(-1);
-                    setRunState("idle");
-                  });
-                }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-white">{example.name}</div>
-                  <span
-                    className={cn(
-                      "rounded-full border px-2 py-1 text-[10px] tracking-[0.18em]",
-                      example.outcome === "warning"
-                        ? "border-amber-300/20 bg-amber-400/10 text-amber-100"
-                        : "border-cyan-300/20 bg-cyan-400/10 text-cyan-100",
-                    )}
-                  >
-                    {example.outcome === "warning" ? "回退" : "直达"}
-                  </span>
-                </div>
-                <div className="text-sm leading-6 text-slate-300">{example.summary}</div>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition-colors hover:bg-white/10 disabled:opacity-50"
+            disabled={runState === "running"}
+            onClick={() => {
+              setRunIndex(0);
+              setRunState("running");
+            }}
+          >
+            {runState === "done" ? <RotateCcw className="size-4" /> : <Play className="size-4" />}
+            {runState === "done" ? "重跑" : "运行"}
+          </button>
         </div>
 
-        <Card className="overflow-hidden border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.82),rgba(2,6,23,0.82))] text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.3)]">
-          <CardHeader className="gap-4 border-b border-white/8 pb-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="grid gap-2">
-                <CardTitle className="text-xl text-white">{selectedExample.name}</CardTitle>
-                <CardDescription className="text-sm leading-6 text-slate-300">
-                  {selectedExample.summary}
-                </CardDescription>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
-                disabled={runState === "running"}
-                onClick={() => {
-                  setRunIndex(0);
-                  setRunState("running");
-                }}
-              >
-                {runState === "done" ? <RotateCcw className="size-4" /> : <Play className="size-4" />}
-                {runState === "done" ? "重新运行" : "运行示例"}
-              </Button>
-            </div>
+        <div className="overflow-hidden rounded-[20px] bg-white/4">
+          <div className="h-44 w-full">
+          <ReactFlow<ExampleFlowNode, Edge>
+            nodes={nodes}
+            edges={edges}
+            fitView
+            fitViewOptions={{ padding: 0.18 }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            panOnDrag={false}
+            zoomOnDoubleClick={false}
+            zoomOnScroll={false}
+            zoomOnPinch={false}
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={16}
+              size={1}
+              color="rgba(148, 163, 184, 0.2)"
+            />
+          </ReactFlow>
+        </div>
+      </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                {runLabel}
-              </span>
-              <span>
-                {runState === "idle"
-                  ? "点击运行后会逐步点亮当前步骤。"
-                  : runState === "running"
-                    ? "当前节点与连线会实时高亮。"
-                    : "流程结束后会显示最终输出。"}
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-5 p-4 md:p-5">
-            <div className="overflow-hidden rounded-[24px] border border-white/8 bg-slate-950/70">
-              <div className="h-[380px] w-full">
-                <ReactFlow<FlowDemoNode, Edge>
-                  key={selectedExample.id}
-                  nodes={flowNodes}
-                  edges={flowEdges}
-                  nodeTypes={flowNodeTypes}
-                  fitView
-                  fitViewOptions={{ padding: 0.14 }}
-                  nodesDraggable={false}
-                  nodesConnectable={false}
-                  elementsSelectable={false}
-                  panOnDrag
-                  zoomOnDoubleClick={false}
-                  minZoom={0.7}
-                >
-                  <Background
-                    variant={BackgroundVariant.Dots}
-                    gap={18}
-                    size={1}
-                    color="rgba(148, 163, 184, 0.22)"
-                  />
-                  <Controls position="bottom-right" showInteractive={false} />
-                </ReactFlow>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-              <div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
-                <div className="text-xs tracking-[0.18em] text-slate-500">当前状态</div>
-                <div className="mt-3 text-base font-medium text-white">
-                  {runState === "idle"
-                    ? "还没有开始运行"
-                    : runState === "running"
-                      ? currentStep?.title ?? "正在准备"
-                      : selectedExample.resultLabel}
-                </div>
-                <div className="mt-2 text-sm leading-7 text-slate-300">
-                  {runState === "idle"
-                    ? "点击运行后，会依次展示分析 Skill 的每一个关键动作。"
-                    : runState === "running"
-                      ? currentStep?.detail
-                      : selectedExample.resultValue}
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-cyan-300/12 bg-cyan-400/8 p-4">
-                <div className="text-xs tracking-[0.18em] text-cyan-100/70">最终输出</div>
-                <div className="mt-3 text-base font-medium text-white">{selectedExample.resultLabel}</div>
-                <div className="mt-2 text-sm leading-7 text-slate-100">{selectedExample.resultValue}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-2xl bg-white/4 px-4 py-3 text-sm text-slate-300">
+            {runState === "idle"
+              ? "点击运行查看流程"
+              : runState === "running"
+                ? `当前：${currentStep}`
+                : activeExample.resultLabel}
+          </div>
+          <div className="rounded-2xl bg-white/4 px-4 py-3 text-sm text-slate-200">
+            输出：{activeExample.output}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function FlowStatusNode({
-  data,
-}: NodeProps<FlowDemoNode>) {
-  const stateClass =
-    data.state === "running"
-      ? "border-cyan-300/30 bg-cyan-400/12 shadow-[0_0_0_1px_rgba(34,211,238,0.12),0_16px_40px_rgba(34,211,238,0.12)]"
-      : data.state === "done"
-        ? "border-emerald-300/24 bg-emerald-400/10"
-        : data.state === "warning"
-          ? "border-amber-300/24 bg-amber-400/10"
-          : data.state === "result"
-            ? "border-violet-300/24 bg-violet-400/12"
-            : "border-white/8 bg-slate-950/80";
+function SafetyModal({
+  level,
+  summary,
+  points,
+  onClose,
+}: {
+  level: string;
+  summary: string;
+  points: string[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
 
-  const dotClass =
-    data.state === "running"
-      ? "bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.7)]"
-      : data.state === "done"
-        ? "bg-emerald-300"
-        : data.state === "warning"
-          ? "bg-amber-300"
-          : data.state === "result"
-            ? "bg-violet-300"
-            : "bg-slate-500";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
 
   return (
-    <div className={cn("w-[220px] rounded-[22px] border p-4 text-left backdrop-blur-sm", stateClass)}>
-      <Handle type="target" position={Position.Left} className="!opacity-0" />
-      <Handle type="source" position={Position.Right} className="!opacity-0" />
-      <div className="flex items-center gap-2">
-        <span className={cn("size-2.5 rounded-full", dotClass)} />
-        <span className="text-[11px] tracking-[0.18em] text-slate-400">
-          {data.state === "running"
-            ? "RUNNING"
-            : data.state === "done"
-              ? "DONE"
-              : data.state === "warning"
-                ? "FALLBACK"
-                : data.state === "result"
-                  ? "OUTPUT"
-                  : "WAITING"}
-        </span>
+    <div className="fixed inset-0 z-50 bg-slate-950/72 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="mx-auto grid max-w-lg gap-4 rounded-[28px] bg-slate-950 px-5 py-5 text-white shadow-[0_24px_80px_rgba(2,6,23,0.45)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="grid gap-1">
+            <div className="text-sm font-medium text-slate-100">安全摘要</div>
+            <div className="text-sm text-slate-300">{summary}</div>
+          </div>
+          <button
+            type="button"
+            className="rounded-full bg-white/6 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+            onClick={onClose}
+          >
+            关闭
+          </button>
+        </div>
+
+        <div className="rounded-2xl bg-white/4 px-4 py-3">
+          <div className="text-[11px] tracking-[0.18em] text-slate-500">安全等级</div>
+          <div className="mt-2 text-sm font-medium text-white">{level}</div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {points.map((point) => (
+            <span
+              key={point}
+              className="rounded-full border border-white/8 bg-white/4 px-3 py-1.5 text-sm text-slate-200"
+            >
+              {point}
+            </span>
+          ))}
+        </div>
       </div>
-      <div className="mt-3 text-sm font-medium text-white">{data.title}</div>
-      <div className="mt-2 text-xs leading-6 text-slate-300">{data.detail}</div>
     </div>
   );
 }
 
-function buildFlowExamples(feature: FeatureAnalysis): FlowDemoExample[] {
+function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
   return [
     {
       id: "direct-hit",
-      name: "标准命中",
-      summary: "输入完整、结构清晰时，流程会直接进入生成阶段并返回最终结果。",
-      resultLabel: "输出结果",
-      resultValue: feature.outputs[0] ?? "返回结构化结果。",
-      outcome: "success",
-      steps: [
-        {
-          id: "receive",
-          title: "接收请求",
-          detail: feature.trigger_conditions[0] ?? feature.skill_purpose,
-        },
-        {
-          id: "parse",
-          title: "解析输入",
-          detail: feature.inputs[0] ?? "读取用户输入与上下文。",
-        },
-        {
-          id: "check",
-          title: "执行校验",
-          detail: feature.prechecks[0] ?? "确认输入完整、结构可用。",
-        },
-        {
-          id: "generate",
-          title: "生成结果",
-          detail: feature.execution_steps[0] ?? "进入主流程，组织最终输出。",
-        },
-        {
-          id: "deliver",
-          title: "返回输出",
-          detail: feature.outputs[0] ?? "交付结构化结果。",
-        },
-      ],
+      title: "标准命中",
+      description: shortenText("输入完整时，直接生成结果。", 20),
+      output: shortenText(feature.outputs[0] ?? "Infographic DSL 代码块", 16),
+      steps: ["输入内容", "校验结构", "生成结果"],
+      resultLabel: "已生成结果",
     },
     {
       id: "missing-input",
-      name: "信息不足",
-      summary: "当关键输入缺失时，流程会停在校验阶段，并直接返回补充说明。",
-      resultLabel: "回退结果",
-      resultValue: feature.failure_modes[0] ?? "提示补充必要输入后再继续。",
-      outcome: "warning",
-      steps: [
-        {
-          id: "receive",
-          title: "接收请求",
-          detail: feature.trigger_conditions[0] ?? "识别到需要调用这个 Skill。",
-        },
-        {
-          id: "parse",
-          title: "整理输入",
-          detail: feature.inputs[1] ?? feature.inputs[0] ?? "整理现有输入。",
-        },
-        {
-          id: "check",
-          title: "发现缺失",
-          detail: feature.prechecks[0] ?? "校验时发现必要字段不足。",
-        },
-        {
-          id: "fallback",
-          title: "返回补充说明",
-          detail: feature.failure_modes[0] ?? "请用户补充缺失信息。",
-        },
-      ],
+      title: "信息不足",
+      description: shortenText("输入缺失时，返回提示。", 20),
+      output: shortenText(feature.failure_modes[0] ?? "补充信息提示", 16),
+      steps: ["输入内容", "检查缺失", "返回提示"],
+      resultLabel: "已返回提示",
+      tone: "warning",
     },
     {
       id: "structure-fallback",
-      name: "结构回退",
-      summary: "当模板与内容结构不匹配时，会走兜底路径，尽量交付一个可用结果。",
-      resultLabel: "兜底输出",
-      resultValue:
-        feature.failure_modes[1] ?? feature.outputs.at(-1) ?? "回退到保守结构后继续输出。",
-      outcome: "success",
-      steps: [
-        {
-          id: "receive",
-          title: "接收请求",
-          detail: feature.trigger_conditions[1] ?? feature.skill_purpose,
-        },
-        {
-          id: "parse",
-          title: "提取结构",
-          detail: feature.inputs[0] ?? "先读取标题、内容和结构。",
-        },
-        {
-          id: "conflict",
-          title: "发现冲突",
-          detail: feature.failure_modes[1] ?? "模板与内容结构不一致。",
-        },
-        {
-          id: "fallback",
-          title: "切到兜底方案",
-          detail: feature.flow_breakdown.failure_paths[0] ?? "切换到更保守的处理路径。",
-        },
-        {
-          id: "deliver",
-          title: "交付结果",
-          detail: feature.outputs.at(-1) ?? "输出保底结果。",
-        },
-      ],
+      title: "结构问题",
+      description: shortenText("结构不匹配时，调整或说明。", 20),
+      output: shortenText(feature.outputs.at(-1) ?? "可用结果或说明", 16),
+      steps: ["输入内容", "检查结构", "调整输出"],
+      resultLabel: "已调整输出",
     },
   ];
 }
 
-function createFlowDemoNodes(
-  example: FlowDemoExample,
-  runIndex: number,
-  runState: "idle" | "running" | "done",
-): FlowDemoNode[] {
-  const yPattern = [0, -52, 52, -32, 0];
+function createExampleFlow(
+  example: FlowExample,
+  runIndex = -1,
+  runState: "idle" | "running" | "done" = "idle",
+): {
+  nodes: ExampleFlowNode[];
+  edges: Edge[];
+} {
+  const nodes: ExampleFlowNode[] = example.steps.map((step, index) => ({
+    id: `${example.id}-${index}`,
+    position: { x: index * 150, y: 24 },
+    data: { label: step },
+    draggable: false,
+    selectable: false,
+    style: {
+      width: 108,
+      borderRadius: 16,
+      border:
+        runState === "running" && index === runIndex
+          ? "1px solid rgba(103,232,249,0.7)"
+          : runState === "done" && index === example.steps.length - 1
+            ? example.tone === "warning"
+              ? "1px solid rgba(251,191,36,0.7)"
+              : "1px solid rgba(167,139,250,0.7)"
+            : runState !== "idle" && index < runIndex
+              ? "1px solid rgba(52,211,153,0.55)"
+              : "1px solid rgba(255,255,255,0.08)",
+      background:
+        runState === "running" && index === runIndex
+          ? "rgba(8,145,178,0.18)"
+          : runState === "done" && index === example.steps.length - 1
+            ? example.tone === "warning"
+              ? "rgba(180,83,9,0.18)"
+              : "rgba(109,40,217,0.18)"
+            : runState !== "idle" && index < runIndex
+              ? "rgba(5,150,105,0.12)"
+              : "rgba(15,23,42,0.92)",
+      color: "#e2e8f0",
+      fontSize: 12,
+      padding: 10,
+      textAlign: "center",
+    },
+  }));
 
-  return example.steps.map((step, index) => {
-    let state: FlowDemoState = "idle";
+  const edges: Edge[] = example.steps.slice(0, -1).map((_, index) => ({
+    id: `${example.id}-edge-${index}`,
+    source: `${example.id}-${index}`,
+    target: `${example.id}-${index + 1}`,
+    type: "smoothstep",
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color:
+        runState !== "idle" && index < runIndex
+          ? "rgba(103,232,249,0.8)"
+          : "rgba(148,163,184,0.35)",
+      width: 16,
+      height: 16,
+    },
+    style: {
+      stroke:
+        runState !== "idle" && index < runIndex
+          ? "rgba(103,232,249,0.8)"
+          : "rgba(148,163,184,0.35)",
+      strokeWidth: runState !== "idle" && index < runIndex ? 2.2 : 1.4,
+    },
+  }));
 
-    if (runState === "running") {
-      if (index < runIndex) {
-        state = "done";
-      } else if (index === runIndex) {
-        state = "running";
-      }
-    }
-
-    if (runState === "done") {
-      if (index === example.steps.length - 1) {
-        state = example.outcome === "warning" ? "warning" : "result";
-      } else {
-        state = "done";
-      }
-    }
-
-    return {
-      id: step.id,
-      type: "status",
-      draggable: false,
-      selectable: false,
-      position: {
-        x: index * 245,
-        y: yPattern[index] ?? 0,
-      },
-      data: {
-        title: step.title,
-        detail: step.detail,
-        state,
-      },
-    };
-  });
+  return { nodes, edges };
 }
 
-function createFlowDemoEdges(
-  example: FlowDemoExample,
-  runIndex: number,
-  runState: "idle" | "running" | "done",
-): Edge[] {
-  return example.steps.slice(0, -1).map((step, index) => {
-    const isActive = runState === "done" || index < runIndex;
-    const stroke =
-      runState === "done" && example.outcome === "warning" && index === example.steps.length - 2
-        ? "#fbbf24"
-        : isActive
-          ? "#67e8f9"
-          : "rgba(148, 163, 184, 0.35)";
+function shortenText(text: string, maxLength: number) {
+  if (text.length <= maxLength) {
+    return text;
+  }
 
-    return {
-      id: `${step.id}-${example.steps[index + 1]?.id}`,
-      source: step.id,
-      target: example.steps[index + 1]?.id ?? step.id,
-      type: "smoothstep",
-      animated: isActive,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 18,
-        height: 18,
-        color: stroke,
-      },
-      style: {
-        stroke,
-        strokeWidth: isActive ? 2.4 : 1.5,
-      },
-    };
-  });
+  return `${text.slice(0, maxLength - 1)}…`;
 }
 
-function MoreUsagePanel({ feature }: { feature: FeatureAnalysis }) {
-  return (
-    <details className="group rounded-[24px] border border-white/8 bg-white/4 p-5">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-base font-medium text-white">
-          <MoreHorizontal className="size-4 text-cyan-200" />
-          More
-        </div>
-        <span className="text-sm text-slate-400 transition-transform group-open:rotate-45">+</span>
-      </summary>
-      <div className="mt-5 grid gap-4">
-        <ConditionCard
-          title="什么时候使用"
-          items={feature.trigger_conditions}
-          emptyLabel="适合用于结构化处理与明确输出的任务。"
-          tone="positive"
-        />
-        <ConditionCard
-          title="什么时候不使用"
-          items={feature.non_trigger_conditions}
-          emptyLabel="没有明显的非触发条件。"
-          tone="neutral"
-        />
-        <InfoStrip
-          title="使用假设"
-          items={
-            feature.assumptions.length === 0 ? ["当前没有额外假设。"] : feature.assumptions
-          }
-        />
-      </div>
-    </details>
-  );
-}
+function buildSafetyPoints(result: SkillAnalysisResult) {
+  const candidates = [
+    ...result.safety_analysis.permission_scope,
+    ...result.safety_analysis.trust_signals,
+    ...result.safety_analysis.findings,
+  ];
 
-function InfoList({
-  title,
-  items,
-  emptyLabel,
-}: {
-  title: string;
-  items: string[];
-  emptyLabel: string;
-}) {
-  return (
-    <Card className="rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.82))] text-slate-100">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base text-white">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <div className="text-sm leading-6 text-slate-500">{emptyLabel}</div>
-        ) : (
-          <ul className="grid gap-2 text-sm leading-6 text-slate-300">
-            {items.map((item) => (
-              <li key={item} className="rounded-2xl border border-white/6 bg-white/4 px-3 py-2">
-                {item}
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+  const compact = candidates
+    .map((item) => shortenText(item.replace(/[，。；：,.]/g, ""), 10))
+    .filter((item, index, array) => item.length > 0 && array.indexOf(item) === index)
+    .slice(0, 4);
 
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="grid gap-2">
-      <div className="text-xs tracking-[0.24em] text-cyan-100/60">{eyebrow}</div>
-      <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white md:text-3xl">
-        {title}
-      </h3>
-      <p className="max-w-2xl text-sm leading-7 text-slate-400 md:text-base">{description}</p>
-    </div>
-  );
-}
-
-function ShowcaseSection({
-  eyebrow,
-  title,
-  description,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-[30px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.86))] p-6 shadow-[0_16px_60px_rgba(2,6,23,0.24)]">
-      <div className="grid gap-5">
-        <SectionHeading eyebrow={eyebrow} title={title} description={description} />
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function SummaryBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-      <div className="text-xs tracking-[0.18em] text-cyan-100/60">{label}</div>
-      <div className="mt-2 text-sm leading-7 text-slate-100">{value}</div>
-    </div>
-  );
-}
-
-function InfoStrip({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="rounded-[24px] border border-white/8 bg-slate-950/45 p-4">
-      <div className="text-sm font-medium text-white">{title}</div>
-      <div className="mt-3 grid gap-2">
-        {items.map((item) => (
-          <div
-            key={item}
-            className="rounded-2xl border border-white/8 bg-white/4 px-3 py-2 text-sm leading-6 text-slate-300"
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ConditionCard({
-  title,
-  items,
-  emptyLabel,
-  tone,
-}: {
-  title: string;
-  items: string[];
-  emptyLabel: string;
-  tone: "positive" | "neutral";
-}) {
-  const icon =
-    tone === "positive" ? (
-      <CheckCheck className="size-4 text-cyan-200" />
-    ) : (
-      <ShieldAlert className="size-4 text-slate-300" />
-    );
-
-  return (
-    <div className="rounded-[24px] border border-white/8 bg-white/4 p-5">
-      <div className="flex items-center gap-2 text-base font-medium text-white">
-        {icon}
-        {title}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2.5">
-        {(items.length === 0 ? [emptyLabel] : items).map((item) => (
-          <span
-            key={item}
-            className={cn(
-              "rounded-full border px-3.5 py-2 text-sm leading-6",
-              tone === "positive"
-                ? "border-cyan-300/16 bg-cyan-400/8 text-cyan-50"
-                : "border-white/8 bg-slate-950/50 text-slate-300",
-            )}
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TagCard({
-  title,
-  icon,
-  items,
-  emptyLabel,
-}: {
-  title: string;
-  icon: ReactNode;
-  items: string[];
-  emptyLabel: string;
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/8 bg-white/4 p-5">
-      <div className="flex items-center gap-2 text-base font-medium text-white">
-        {icon}
-        {title}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {(items.length === 0 ? [emptyLabel] : items).map((item) => (
-          <span
-            key={item}
-            className="rounded-full border border-white/8 bg-slate-950/50 px-3 py-1.5 text-sm text-slate-200"
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ChecklistCard({
-  title,
-  items,
-  emptyLabel,
-}: {
-  title: string;
-  items: string[];
-  emptyLabel: string;
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/8 bg-white/4 p-5">
-      <div className="text-base font-medium text-white">{title}</div>
-      <div className="mt-4 grid gap-3">
-        {(items.length === 0 ? [emptyLabel] : items).map((item) => (
-          <div key={item} className="flex gap-3 rounded-2xl bg-slate-950/45 px-4 py-3">
-            <CheckCheck className="mt-0.5 size-4 shrink-0 text-cyan-200" />
-            <div className="text-sm leading-6 text-slate-300">{item}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TimelineCard({
-  title,
-  items,
-  emptyLabel,
-}: {
-  title: string;
-  items: string[];
-  emptyLabel: string;
-}) {
-  const displayItems = items.length === 0 ? [emptyLabel] : items;
-
-  return (
-    <div className="rounded-[24px] border border-white/8 bg-white/4 p-5">
-      <div className="text-base font-medium text-white">{title}</div>
-      <div className="mt-5 grid gap-3">
-        {displayItems.map((item, index) => (
-          <div key={item} className="grid grid-cols-[auto_1fr] gap-3">
-            <div className="flex flex-col items-center">
-              <div className="flex size-8 items-center justify-center rounded-full bg-cyan-400/12 text-sm font-semibold text-cyan-100">
-                {index + 1}
-              </div>
-              {index !== displayItems.length - 1 ? (
-                <div className="mt-2 h-full w-px bg-gradient-to-b from-cyan-300/30 to-transparent" />
-              ) : null}
-            </div>
-            <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-4 py-3 text-sm leading-6 text-slate-300">
-              {item}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return compact.length > 0
+    ? compact
+    : ["不联网", "不写文件", "整理内容", "输出可查"];
 }
