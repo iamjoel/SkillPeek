@@ -11,13 +11,18 @@ import { Input } from "@my-better-t-app/ui/components/input";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import {
+  BaseEdge,
   Background,
   BackgroundVariant,
+  EdgeLabelRenderer,
   Handle,
   MarkerType,
   Position,
   ReactFlow,
+  getSmoothStepPath,
   type Edge,
+  type EdgeProps,
+  type EdgeTypes,
   type Node,
   type NodeProps,
   type NodeTypes,
@@ -52,6 +57,12 @@ type DataTransferItemWithEntry = DataTransferItem & {
 type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSkill.mutate>>;
 type FeatureAnalysis = SkillAnalysisResult["feature_analysis"];
 type ExampleFlowNodeData = { label: string };
+type ExampleFlowEdgeData = {
+  labelOffsetX?: number;
+  labelOffsetY?: number;
+  route?: "loop-back";
+  lift?: number;
+};
 type FlowExample = {
   id: string;
   title: string;
@@ -63,77 +74,75 @@ type FlowExample = {
   tone?: "default" | "warning";
 };
 type ExampleFlowNode = Node<ExampleFlowNodeData, "step" | "decision">;
+type ExampleFlowEdge = Edge<ExampleFlowEdgeData>;
 
 const MOCK_SKILL_RESULT: SkillAnalysisResult = {
   status: "success",
-  skill_name: "infographic-syntax-creator",
+  skill_name: "Larry",
   source: {
     kind: "upload",
-    label: "infographic-syntax-creator",
-    analyzed_files: ["infographic-syntax-creator/SKILL.md"],
+    label: "Larry · ClawHub",
+    analyzed_files: ["https://clawhub.ai/OllieWazza/larry"],
     file_count: 1,
     model: "gemini-3-flash-preview",
   },
   language_note: "输出语言默认跟随用户请求所使用的语言。",
   feature_analysis: {
-    skill_name: "infographic-syntax-creator",
-    summary: "把用户提供的内容整理成 Infographic DSL，并输出可直接使用的结构化语法。",
-    skill_purpose: "将原始内容转换为符合 infographic 模板约束的 DSL 输出。",
+    skill_name: "Larry",
+    summary: "自动化 TikTok 幻灯片营销，从研究、生成到复盘迭代。",
+    skill_purpose: "将竞品研究、内容生成、发布和效果追踪串成可循环优化的营销流程。",
     trigger_conditions: [
-      "用户要求把文本转成 infographic 语法",
-      "用户需要根据内容匹配模板并生成 DSL",
+      "用户要为 app 或产品搭建 TikTok 幻灯片营销流程",
+      "用户希望自动研究竞品、生成素材并持续复盘优化",
     ],
     non_trigger_conditions: [
-      "用户只是在讨论设计方向，没有要求生成 DSL",
-      "用户只想看原始文本摘要，不需要结构化语法输出",
+      "用户只想做一次性文案润色，不需要整套投放流程",
+      "用户不准备连接外部平台或提供营销数据",
     ],
-    inputs: ["用户原始内容", "模板偏好或展示目标", "输出语言要求"],
-    prechecks: ["确认输入内容完整", "确认适合 infographic 场景", "匹配模板约束"],
+    inputs: ["产品信息", "目标受众", "竞品线索", "可用渠道与账号配置"],
+    prechecks: ["确认定位清晰", "检查配置与密钥", "确认可访问外部服务"],
     execution_steps: [
-      "解析内容中的主题、层级和关键数据",
-      "匹配合适的 infographic 模板",
-      "将内容映射为结构化 DSL 字段",
-      "整理为可直接输出的 plain 代码块",
+      "研究竞品内容与热点形式",
+      "批量生成图像、文案和字幕",
+      "发布到 TikTok 与分发平台",
+      "回收分析数据并调整下一轮选题",
     ],
-    failure_modes: ["输入信息不足", "模板与内容结构不匹配", "关键字段缺失需要回退补全"],
-    outputs: ["Infographic DSL 代码块", "结构化模板字段", "必要的回退说明"],
+    failure_modes: ["产品信息不足", "配置缺失", "外部平台返回异常"],
+    outputs: ["TikTok 内容计划", "可发布素材", "复盘建议与下一轮方向"],
     flow_breakdown: {
-      trigger: ["接收 infographic 语法生成请求", "确认属于 DSL 生成场景"],
-      input_parsing: ["解析标题、描述、条目和层级关系", "提取关键数据与版式意图"],
-      prechecks: ["验证输入是否完整", "检查模板和内容是否匹配"],
-      execution: ["构建 data 块", "应用模板配置", "输出 plain 代码块"],
-      failure_paths: ["缺失输入时回退补全", "模板冲突时降级到兜底结构"],
-      outputs: ["返回可直接使用的 DSL", "附带必要说明"],
+      trigger: ["接收 TikTok 营销搭建请求", "确认属于自动化营销场景"],
+      input_parsing: ["整理产品定位与目标用户", "收集竞品和渠道配置"],
+      prechecks: ["验证配置是否完整", "确认外部服务可用"],
+      execution: ["研究竞品", "生成素材", "发布内容", "复盘效果并迭代"],
+      failure_paths: ["信息缺失时提示补充", "服务异常时切换为保守输出"],
+      outputs: ["返回内容计划", "给出可发布结果与下一步建议"],
     },
-    assumptions: ["假设用户提供的内容已经足够支撑一个 infographic 模板输出。"],
+    assumptions: ["假设用户已经准备好产品信息，并愿意连接营销所需的外部服务。"],
     mermaid: `flowchart TD
-    A["接收 infographic 请求"] --> B{"是否适合 DSL 生成?"}
+    A["接收 TikTok 营销请求"] --> B{"信息与配置是否可用?"}
     B -- "否" --> C["返回不触发说明"]
-    B -- "是" --> D["解析标题、描述与层级"]
-    D --> E{"输入是否完整?"}
-    E -- "否" --> F["提示补充或自动兜底"]
-    E -- "是" --> G["匹配模板并验证结构"]
-    G --> H{"预检查是否通过?"}
-    H -- "否" --> I["回退到安全模板"]
-    H -- "是" --> J["生成 data 块与主题配置"]
-    J --> K["输出 plain DSL 代码块"]`,
+    B -- "是" --> D["研究竞品与热点"]
+    D --> E["生成图像、文案与字幕"]
+    E --> F{"发布结果是否达标?"}
+    F -- "否" --> G["调整策略并继续迭代"]
+    F -- "是" --> H["输出可复用内容流程"]`,
   },
   safety_analysis: {
-    risk_level: "safe",
+    risk_level: "caution",
     is_malicious_or_unsafe: false,
-    verdict: "该 Skill 主要用于文本结构化转换，不涉及高风险能力。",
-    findings: ["范围集中在内容转换和格式化输出", "没有请求额外系统权限或敏感数据"],
-    metadata_review: ["Skill 目的清晰", "输入输出边界明确"],
-    permission_scope: ["读取用户提供的文本内容", "输出 DSL 代码块"],
-    red_flags: [],
-    trust_signals: ["功能单一", "行为可预测", "输出结构明确"],
+    verdict: "能力边界清楚，但依赖外部平台和密钥配置，使用前应隔离验证。",
+    findings: ["会调用外部营销与图像服务", "需要配置 Postiz 与图像生成密钥"],
+    metadata_review: ["用途明确", "配置需求与元数据存在落差"],
+    permission_scope: ["读取本地配置", "写入报告文件", "调用外部 API"],
+    red_flags: ["涉及敏感密钥", "会写入本地分析文件"],
+    trust_signals: ["目标清晰", "流程可审查", "输出可复盘"],
     blocked_capabilities: [],
-    notes: ["适合作为安全的内容生成类 Skill 示例。"],
+    notes: ["适合在沙箱或测试环境中验证后再接入真实账号。"],
     mermaid: `flowchart TD
     A["读取 Skill"] --> B["检查元数据"]
     B --> C["检查权限范围"]
-    C --> D["扫描红旗内容"]
-    D --> E["输出 safe 结论"]`,
+    C --> D["扫描密钥与外部调用"]
+    D --> E["输出 caution 结论"]`,
   },
 };
 
@@ -567,6 +576,10 @@ const flowNodeTypes = {
   decision: DecisionFlowNode,
 } satisfies NodeTypes;
 
+const flowEdgeTypes = {
+  annotated: AnnotatedFlowEdge,
+} satisfies EdgeTypes;
+
 function StepFlowNode({ data }: NodeProps<ExampleFlowNode>) {
   return (
     <div className="relative rounded-[12px] border border-white/10 bg-slate-950/90 px-2 py-1.5 text-center text-[10px] font-medium text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
@@ -607,6 +620,68 @@ function DecisionFlowNode({ data }: NodeProps<ExampleFlowNode>) {
         {data.label}
       </div>
     </div>
+  );
+}
+
+function AnnotatedFlowEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  label,
+  data,
+}: EdgeProps<ExampleFlowEdge>) {
+  const isLoopBack = data?.route === "loop-back" && targetX < sourceX;
+  const lift = data?.lift ?? 64;
+  const [edgePath, labelX, labelY] = isLoopBack
+    ? (() => {
+        const loopTopY = Math.min(sourceY, targetY) - lift;
+        const exitX = sourceX + 18;
+        const entryX = targetX - 18;
+        const path = [
+          `M ${sourceX} ${sourceY}`,
+          `L ${exitX} ${sourceY}`,
+          `L ${exitX} ${loopTopY}`,
+          `L ${entryX} ${loopTopY}`,
+          `L ${entryX} ${targetY}`,
+          `L ${targetX} ${targetY}`,
+        ].join(" ");
+
+        return [path, (exitX + entryX) / 2, loopTopY] as const;
+      })()
+    : getSmoothStepPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition,
+        targetPosition,
+        borderRadius: 18,
+      });
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {label ? (
+        <EdgeLabelRenderer>
+          <div
+            className="pointer-events-none absolute rounded-full border border-white/10 bg-slate-950/94 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-100 shadow-[0_4px_18px_rgba(2,6,23,0.35)]"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX + (data?.labelOffsetX ?? 0)}px, ${
+                labelY + (data?.labelOffsetY ?? 0)
+              }px)`,
+            }}
+          >
+            {label}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
   );
 }
 
@@ -778,6 +853,7 @@ function FlowCanvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={flowNodeTypes}
+        edgeTypes={flowEdgeTypes}
         fitView
         fitViewOptions={{ padding: 0.28 }}
         nodesDraggable={false}
@@ -866,39 +942,76 @@ function SafetyModal({
 function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
   return [
     {
-      id: "direct-hit",
-      title: "多条目整理",
-      description: shortenText("逐条遍历内容，完成后统一生成。", 28),
-      output: shortenText(feature.outputs[0] ?? "Infographic DSL 代码块", 24),
-      preview: `infographic compare
-items:
-  - title: "核心信息"
-  - title: "逐条整理后输出"`,
-      path: ["input", "check", "iterate", "loop", "iterate", "loop", "generate", "output"],
-      resultLabel: "已生成结果",
+      id: "full-loop",
+      title: "完整闭环",
+      description: shortenText("调研、归因和日报都接通时，进入持续优化。", 28),
+      output: shortenText("生成排期、日报和下一轮 hooks", 24),
+      preview: `今日结果
+- 排期：07:30 / 16:30 / 21:00
+- 日报：已生成
+- 下一轮：3 个新 hooks`,
+      path: [
+        "profile",
+        "browser",
+        "research",
+        "setup",
+        "revenue",
+        "attribution",
+        "strategy",
+        "report",
+        "iterate",
+        "strategy",
+        "report",
+        "iterate",
+        "output",
+      ],
+      resultLabel: "已进入优化循环",
     },
     {
-      id: "missing-input",
-      title: "信息不足",
-      description: shortenText("输入缺失时，返回补充提示。", 28),
-      output: shortenText(feature.failure_modes[0] ?? "补充信息提示", 24),
-      preview: `缺少必要输入：
-- 标题
-- 条目内容`,
-      path: ["input", "check", "missing", "output"],
-      resultLabel: "已返回提示",
+      id: "manual-research",
+      title: "手动补充",
+      description: shortenText("没有浏览器权限时，先用人工信息继续搭建。", 28),
+      output: shortenText("输出基础排期与补充清单", 24),
+      preview: `当前结果
+- 已生成基础排期
+- 待补充：竞品账号
+- 建议：补做浏览器调研`,
+      path: [
+        "profile",
+        "browser",
+        "manual",
+        "setup",
+        "revenue",
+        "views",
+        "strategy",
+        "report",
+        "iterate",
+        "output",
+      ],
+      resultLabel: "已切到手动模式",
       tone: "warning",
     },
     {
-      id: "structure-fallback",
-      title: "结构回退",
-      description: shortenText("结构异常时，走兜底并继续输出。", 28),
-      output: shortenText(feature.outputs.at(-1) ?? "可用结果或说明", 24),
-      preview: `已切换兜底结构：
-items:
-  - label: "保守输出"`,
-      path: ["input", "check", "fallback", "iterate", "loop", "generate", "output"],
-      resultLabel: "已调整输出",
+      id: "views-only",
+      title: "仅看曝光",
+      description: shortenText("未接入 RevenueCat 时，只按播放和互动优化。", 28),
+      output: shortenText("输出基于曝光的优化建议", 24),
+      preview: `日报结论
+- 高播放低转化：检查 CTA
+- 低播放高收藏：换开头 hook`,
+      path: [
+        "profile",
+        "browser",
+        "research",
+        "setup",
+        "revenue",
+        "views",
+        "strategy",
+        "report",
+        "iterate",
+        "output",
+      ],
+      resultLabel: "已输出曝光建议",
     },
   ];
 }
@@ -909,7 +1022,7 @@ function createExampleFlow(
   runState: "idle" | "running" | "done" = "idle",
 ): {
   nodes: ExampleFlowNode[];
-  edges: Edge[];
+  edges: ExampleFlowEdge[];
 } {
   const highlightedPath =
     runState === "running" ? example.path.slice(0, Math.max(runIndex, 0) + 1) : example.path;
@@ -957,7 +1070,7 @@ function createExampleFlow(
       .map((nodeId, index, path) => `${nodeId}->${path[index + 1]}`),
   );
 
-  const edges: Edge[] = getSharedFlowEdges().map((edge) => {
+  const edges: ExampleFlowEdge[] = getSharedFlowEdges().map((edge) => {
     const edgeKey = `${edge.source}->${edge.target}`;
     const isActive = activeEdges.has(edgeKey);
 
@@ -990,163 +1103,144 @@ function getSharedFlowNodeLabel(nodeId: string) {
 function getSharedFlowNodes(): ExampleFlowNode[] {
   return [
     {
-      id: "input",
+      id: "profile",
       type: "step",
-      position: { x: 0, y: 104 },
-      data: { label: "输入内容" },
+      position: { x: 0, y: 112 },
+      data: { label: "账号 / 产品" },
     },
     {
-      id: "check",
+      id: "browser",
       type: "decision",
-      position: { x: 108, y: 84 },
-      data: { label: "检查条件" },
+      position: { x: 124, y: 88 },
+      data: { label: "允许调研" },
+    },
+    {
+      id: "research",
+      type: "step",
+      position: { x: 270, y: 20 },
+      data: { label: "竞品研究" },
+    },
+    {
+      id: "manual",
+      type: "step",
+      position: { x: 270, y: 204 },
+      data: { label: "手动补充" },
+    },
+    {
+      id: "setup",
+      type: "step",
+      position: { x: 432, y: 112 },
+      data: { label: "图像 / Postiz" },
+    },
+    {
+      id: "revenue",
+      type: "decision",
+      position: { x: 560, y: 88 },
+      data: { label: "接入收入" },
+    },
+    {
+      id: "attribution",
+      type: "step",
+      position: { x: 706, y: 20 },
+      data: { label: "收入归因" },
+    },
+    {
+      id: "views",
+      type: "step",
+      position: { x: 706, y: 204 },
+      data: { label: "仅看曝光" },
+    },
+    {
+      id: "strategy",
+      type: "step",
+      position: { x: 870, y: 112 },
+      data: { label: "生成并排期" },
+    },
+    {
+      id: "report",
+      type: "step",
+      position: { x: 1014, y: 112 },
+      data: { label: "日报复盘" },
     },
     {
       id: "iterate",
-      type: "step",
-      position: { x: 256, y: 16 },
-      data: { label: "遍历条目" },
-    },
-    {
-      id: "loop",
       type: "decision",
-      position: { x: 388, y: 0 },
-      data: { label: "继续迭代" },
-    },
-    {
-      id: "generate",
-      type: "step",
-      position: { x: 512, y: 16 },
-      data: { label: "生成结果" },
-    },
-    {
-      id: "missing",
-      type: "step",
-      position: { x: 256, y: 104 },
-      data: { label: "返回提示" },
-    },
-    {
-      id: "fallback",
-      type: "step",
-      position: { x: 256, y: 192 },
-      data: { label: "调整输出" },
+      position: { x: 1146, y: 88 },
+      data: { label: "继续优化" },
     },
     {
       id: "output",
       type: "step",
-      position: { x: 644, y: 104 },
-      data: { label: "最终输出" },
+      position: { x: 1292, y: 112 },
+      data: { label: "输出结果" },
     },
   ];
 }
 
-function getSharedFlowEdges(): Edge[] {
+function getSharedFlowEdges(): ExampleFlowEdge[] {
   return [
-    { id: "input-check", source: "input", target: "check", type: "smoothstep" },
+    { id: "profile-browser", source: "profile", target: "browser", type: "smoothstep" },
     {
-      id: "check-iterate",
-      source: "check",
+      id: "browser-research",
+      source: "browser",
       sourceHandle: "branch-top",
-      target: "iterate",
-      type: "smoothstep",
-      label: "通过",
-      labelStyle: {
-        fill: "rgba(226,232,240,0.92)",
-        fontSize: 10,
-        fontWeight: 500,
-      },
-      labelShowBg: true,
-      labelBgStyle: {
-        fill: "rgba(15,23,42,0.92)",
-        stroke: "rgba(255,255,255,0.08)",
-      },
-      labelBgPadding: [6, 3],
-      labelBgBorderRadius: 999,
+      target: "research",
+      type: "annotated",
+      label: "允许",
+      data: { labelOffsetX: -8, labelOffsetY: -18 },
     },
     {
-      id: "check-missing",
-      source: "check",
+      id: "browser-manual",
+      source: "browser",
       sourceHandle: "branch-mid",
-      target: "missing",
-      type: "smoothstep",
-      label: "缺失",
-      labelStyle: {
-        fill: "rgba(226,232,240,0.92)",
-        fontSize: 10,
-        fontWeight: 500,
-      },
-      labelShowBg: true,
-      labelBgStyle: {
-        fill: "rgba(15,23,42,0.92)",
-        stroke: "rgba(255,255,255,0.08)",
-      },
-      labelBgPadding: [6, 3],
-      labelBgBorderRadius: 999,
+      target: "manual",
+      type: "annotated",
+      label: "手动",
+      data: { labelOffsetX: -10, labelOffsetY: 18 },
     },
+    { id: "research-setup", source: "research", target: "setup", type: "smoothstep" },
+    { id: "manual-setup", source: "manual", target: "setup", type: "smoothstep" },
+    { id: "setup-revenue", source: "setup", target: "revenue", type: "smoothstep" },
     {
-      id: "check-fallback",
-      source: "check",
-      sourceHandle: "branch-bottom",
-      target: "fallback",
-      type: "smoothstep",
-      label: "异常",
-      labelStyle: {
-        fill: "rgba(226,232,240,0.92)",
-        fontSize: 10,
-        fontWeight: 500,
-      },
-      labelShowBg: true,
-      labelBgStyle: {
-        fill: "rgba(15,23,42,0.92)",
-        stroke: "rgba(255,255,255,0.08)",
-      },
-      labelBgPadding: [6, 3],
-      labelBgBorderRadius: 999,
-    },
-    { id: "iterate-loop", source: "iterate", target: "loop", type: "smoothstep" },
-    {
-      id: "loop-iterate",
-      source: "loop",
+      id: "revenue-attribution",
+      source: "revenue",
       sourceHandle: "branch-top",
-      target: "iterate",
-      type: "smoothstep",
+      target: "attribution",
+      type: "annotated",
+      label: "已接入",
+      data: { labelOffsetX: -6, labelOffsetY: -18 },
+    },
+    {
+      id: "revenue-views",
+      source: "revenue",
+      sourceHandle: "branch-mid",
+      target: "views",
+      type: "annotated",
+      label: "未接入",
+      data: { labelOffsetX: -8, labelOffsetY: 18 },
+    },
+    { id: "attribution-strategy", source: "attribution", target: "strategy", type: "smoothstep" },
+    { id: "views-strategy", source: "views", target: "strategy", type: "smoothstep" },
+    { id: "strategy-report", source: "strategy", target: "report", type: "smoothstep" },
+    { id: "report-iterate", source: "report", target: "iterate", type: "smoothstep" },
+    {
+      id: "iterate-strategy",
+      source: "iterate",
+      sourceHandle: "branch-top",
+      target: "strategy",
+      type: "annotated",
       label: "继续",
-      labelStyle: {
-        fill: "rgba(226,232,240,0.92)",
-        fontSize: 10,
-        fontWeight: 500,
-      },
-      labelShowBg: true,
-      labelBgStyle: {
-        fill: "rgba(15,23,42,0.92)",
-        stroke: "rgba(255,255,255,0.08)",
-      },
-      labelBgPadding: [6, 3],
-      labelBgBorderRadius: 999,
+      data: { route: "loop-back", lift: 84, labelOffsetY: -12 },
     },
     {
-      id: "loop-generate",
-      source: "loop",
+      id: "iterate-output",
+      source: "iterate",
       sourceHandle: "branch-mid",
-      target: "generate",
-      type: "smoothstep",
-      label: "完成",
-      labelStyle: {
-        fill: "rgba(226,232,240,0.92)",
-        fontSize: 10,
-        fontWeight: 500,
-      },
-      labelShowBg: true,
-      labelBgStyle: {
-        fill: "rgba(15,23,42,0.92)",
-        stroke: "rgba(255,255,255,0.08)",
-      },
-      labelBgPadding: [6, 3],
-      labelBgBorderRadius: 999,
+      target: "output",
+      type: "annotated",
+      label: "收敛",
+      data: { labelOffsetX: -8, labelOffsetY: 18 },
     },
-    { id: "generate-output", source: "generate", target: "output", type: "smoothstep" },
-    { id: "missing-output", source: "missing", target: "output", type: "smoothstep" },
-    { id: "fallback-iterate", source: "fallback", target: "iterate", type: "smoothstep" },
   ];
 }
 
