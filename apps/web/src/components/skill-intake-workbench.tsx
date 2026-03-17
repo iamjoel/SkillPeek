@@ -14,6 +14,7 @@ import {
   BaseEdge,
   Background,
   BackgroundVariant,
+  Controls,
   EdgeLabelRenderer,
   Handle,
   MarkerType,
@@ -28,13 +29,13 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import {
+  Expand,
   FolderSearch,
   LoaderCircle,
-  Play,
-  RotateCcw,
   Shield,
   Upload,
   Workflow,
+  X,
 } from "lucide-react";
 import { type DragEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -687,46 +688,14 @@ function AnnotatedFlowEdge({
 
 function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
   const [activeId, setActiveId] = useState(examples[0]?.id ?? "");
-  const [runIndex, setRunIndex] = useState(-1);
-  const [runState, setRunState] = useState<"idle" | "running" | "done">("idle");
   const [showFullscreen, setShowFullscreen] = useState(false);
   const activeExample = examples.find((example) => example.id === activeId) ?? examples[0];
-
-  useEffect(() => {
-    if (!activeExample || runState !== "running") {
-      return;
-    }
-
-    if (runIndex >= activeExample.path.length) {
-      setRunState("done");
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setRunIndex((current) => current + 1);
-    }, 720);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [activeExample, runIndex, runState]);
 
   if (!activeExample) {
     return null;
   }
 
-  const { nodes, edges } = createExampleFlow(activeExample, runIndex, runState);
-  const currentStep =
-    runState === "running" && runIndex >= 0
-      ? getSharedFlowNodeLabel(activeExample.path[runIndex])
-      : undefined;
-
-  const runLabel =
-    runState === "running"
-      ? `运行中：${currentStep ?? "处理中"}`
-      : runState === "done"
-        ? activeExample.resultLabel
-        : "待运行";
+  const { nodes, edges } = createExampleFlow(activeExample);
 
   return (
     <div className="grid gap-4 rounded-[28px] bg-slate-950/72 p-4 lg:grid-cols-[168px_1fr]">
@@ -743,8 +712,6 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
             )}
             onClick={() => {
               setActiveId(example.id);
-              setRunIndex(-1);
-              setRunState("idle");
             }}
           >
             <div className="text-sm font-medium">{example.title}</div>
@@ -758,35 +725,19 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
             <div className="text-base font-medium text-white">{activeExample.title}</div>
             <div className="text-sm text-slate-300">{activeExample.description}</div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
-              onClick={() => {
-                setShowFullscreen(true);
-              }}
-            >
-              全屏
-            </button>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
-              {runLabel}
-            </span>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition-colors hover:bg-white/10 disabled:opacity-50"
-              disabled={runState === "running"}
-              onClick={() => {
-                setRunIndex(0);
-                setRunState("running");
-              }}
-            >
-              {runState === "done" ? <RotateCcw className="size-4" /> : <Play className="size-4" />}
-              {runState === "done" ? "重跑" : "运行"}
-            </button>
-          </div>
         </div>
 
-        <div className="overflow-hidden rounded-[20px] bg-white/4">
+        <div className="relative overflow-hidden rounded-[20px] bg-white/4">
+          <button
+            type="button"
+            aria-label="全屏查看流程图"
+            className="absolute right-3 top-3 z-10 inline-flex size-9 items-center justify-center rounded-full border border-white/10 bg-slate-950/80 text-slate-300 transition-colors hover:bg-slate-900 hover:text-white"
+            onClick={() => {
+              setShowFullscreen(true);
+            }}
+          >
+            <Expand className="size-4" />
+          </button>
           <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-52" />
         </div>
 
@@ -801,36 +752,29 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
 
       {showFullscreen ? (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/84 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-slate-950/84 p-4 backdrop-blur-sm"
           onClick={() => {
             setShowFullscreen(false);
           }}
         >
           <div
-            className="mx-auto grid h-full max-w-6xl gap-4 rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_80px_rgba(2,6,23,0.45)] md:p-5"
+            className="relative h-full w-full overflow-hidden rounded-[28px] bg-slate-950 text-white shadow-[0_24px_80px_rgba(2,6,23,0.45)]"
             onClick={(event) => {
               event.stopPropagation();
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="grid gap-1">
-                <div className="text-base font-medium text-white">{activeExample.title}</div>
-                <div className="text-sm text-slate-300">{activeExample.description}</div>
-              </div>
-              <button
-                type="button"
-                className="rounded-full bg-white/6 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
-                onClick={() => {
-                  setShowFullscreen(false);
-                }}
-              >
-                关闭
-              </button>
-            </div>
+            <button
+              type="button"
+              aria-label="关闭全屏"
+              className="absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/82 text-slate-300 transition-colors hover:bg-slate-900 hover:text-white"
+              onClick={() => {
+                setShowFullscreen(false);
+              }}
+            >
+              <X className="size-4" />
+            </button>
 
-            <div className="overflow-hidden rounded-[24px] bg-white/4">
-              <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-[72vh]" />
-            </div>
+            <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-full" interactive />
           </div>
         </div>
       ) : null}
@@ -842,10 +786,12 @@ function FlowCanvas({
   nodes,
   edges,
   heightClassName,
+  interactive = false,
 }: {
   nodes: ExampleFlowNode[];
   edges: Edge[];
   heightClassName: string;
+  interactive?: boolean;
 }) {
   return (
     <div className={cn("w-full", heightClassName)}>
@@ -855,14 +801,17 @@ function FlowCanvas({
         nodeTypes={flowNodeTypes}
         edgeTypes={flowEdgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.28 }}
+        fitViewOptions={{ padding: interactive ? 0.08 : 0.28 }}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
-        panOnDrag={false}
-        zoomOnDoubleClick={false}
-        zoomOnScroll={false}
-        zoomOnPinch={false}
+        panOnDrag={interactive}
+        zoomOnDoubleClick={interactive}
+        zoomOnScroll={interactive}
+        zoomOnPinch={interactive}
+        minZoom={0.35}
+        maxZoom={1.8}
+        preventScrolling={!interactive}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -870,6 +819,13 @@ function FlowCanvas({
           size={1}
           color="rgba(148, 163, 184, 0.2)"
         />
+        {interactive ? (
+          <Controls
+            position="bottom-left"
+            showInteractive={false}
+            className="!rounded-2xl !border !border-white/10 !bg-slate-950/86 !shadow-[0_12px_30px_rgba(2,6,23,0.35)]"
+          />
+        ) : null}
       </ReactFlow>
     </div>
   );
@@ -1016,22 +972,16 @@ function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
   ];
 }
 
-function createExampleFlow(
-  example: FlowExample,
-  runIndex = -1,
-  runState: "idle" | "running" | "done" = "idle",
-): {
+function createExampleFlow(example: FlowExample): {
   nodes: ExampleFlowNode[];
   edges: ExampleFlowEdge[];
 } {
-  const highlightedPath =
-    runState === "running" ? example.path.slice(0, Math.max(runIndex, 0) + 1) : example.path;
+  const highlightedPath = example.path;
   const activeNodeIds = new Set(
     highlightedPath,
   );
-  const currentNodeId =
-    runState === "running" && runIndex >= 0 ? example.path[Math.min(runIndex, example.path.length - 1)] : null;
-  const resultNodeId = runState === "done" ? example.path[example.path.length - 1] : null;
+  const currentNodeId = null;
+  const resultNodeId = null;
 
   const nodes: ExampleFlowNode[] = getSharedFlowNodes().map((node) => ({
     ...node,
@@ -1092,12 +1042,6 @@ function createExampleFlow(
   });
 
   return { nodes, edges };
-}
-
-function getSharedFlowNodeLabel(nodeId: string) {
-  return (
-    getSharedFlowNodes().find((node) => node.id === nodeId)?.data.label ?? "处理中"
-  );
 }
 
 function getSharedFlowNodes(): ExampleFlowNode[] {
