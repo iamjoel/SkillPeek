@@ -867,14 +867,14 @@ function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
   return [
     {
       id: "direct-hit",
-      title: "标准命中",
-      description: shortenText("输入完整时，直接生成结果。", 28),
+      title: "多条目整理",
+      description: shortenText("逐条遍历内容，完成后统一生成。", 28),
       output: shortenText(feature.outputs[0] ?? "Infographic DSL 代码块", 24),
       preview: `infographic compare
 items:
   - title: "核心信息"
-  - title: "结构内容"`,
-      path: ["input", "check", "generate", "output"],
+  - title: "逐条整理后输出"`,
+      path: ["input", "check", "iterate", "loop", "iterate", "loop", "generate", "output"],
       resultLabel: "已生成结果",
     },
     {
@@ -891,13 +891,13 @@ items:
     },
     {
       id: "structure-fallback",
-      title: "结构问题",
-      description: shortenText("结构不匹配时，调整后输出。", 28),
+      title: "结构回退",
+      description: shortenText("结构异常时，走兜底并继续输出。", 28),
       output: shortenText(feature.outputs.at(-1) ?? "可用结果或说明", 24),
       preview: `已切换兜底结构：
 items:
   - label: "保守输出"`,
-      path: ["input", "check", "fallback", "output"],
+      path: ["input", "check", "fallback", "iterate", "loop", "generate", "output"],
       resultLabel: "已调整输出",
     },
   ];
@@ -911,12 +911,10 @@ function createExampleFlow(
   nodes: ExampleFlowNode[];
   edges: Edge[];
 } {
+  const highlightedPath =
+    runState === "running" ? example.path.slice(0, Math.max(runIndex, 0) + 1) : example.path;
   const activeNodeIds = new Set(
-    runState === "idle"
-      ? []
-      : runState === "running"
-        ? example.path.slice(0, Math.max(runIndex, 0) + 1)
-        : example.path,
+    highlightedPath,
   );
   const currentNodeId =
     runState === "running" && runIndex >= 0 ? example.path[Math.min(runIndex, example.path.length - 1)] : null;
@@ -954,12 +952,7 @@ function createExampleFlow(
   }));
 
   const activeEdges = new Set(
-    (runState === "idle"
-      ? []
-      : runState === "running"
-        ? example.path.slice(0, Math.max(runIndex, 0) + 1)
-        : example.path
-    )
+    highlightedPath
       .slice(0, -1)
       .map((nodeId, index, path) => `${nodeId}->${path[index + 1]}`),
   );
@@ -999,37 +992,49 @@ function getSharedFlowNodes(): ExampleFlowNode[] {
     {
       id: "input",
       type: "step",
-      position: { x: 0, y: 84 },
+      position: { x: 0, y: 104 },
       data: { label: "输入内容" },
     },
     {
       id: "check",
       type: "decision",
-      position: { x: 112, y: 64 },
+      position: { x: 108, y: 84 },
       data: { label: "检查条件" },
+    },
+    {
+      id: "iterate",
+      type: "step",
+      position: { x: 256, y: 16 },
+      data: { label: "遍历条目" },
+    },
+    {
+      id: "loop",
+      type: "decision",
+      position: { x: 388, y: 0 },
+      data: { label: "继续迭代" },
     },
     {
       id: "generate",
       type: "step",
-      position: { x: 260, y: 8 },
+      position: { x: 512, y: 16 },
       data: { label: "生成结果" },
     },
     {
       id: "missing",
       type: "step",
-      position: { x: 260, y: 84 },
+      position: { x: 256, y: 104 },
       data: { label: "返回提示" },
     },
     {
       id: "fallback",
       type: "step",
-      position: { x: 260, y: 160 },
+      position: { x: 256, y: 192 },
       data: { label: "调整输出" },
     },
     {
       id: "output",
       type: "step",
-      position: { x: 398, y: 84 },
+      position: { x: 644, y: 104 },
       data: { label: "最终输出" },
     },
   ];
@@ -1039,10 +1044,10 @@ function getSharedFlowEdges(): Edge[] {
   return [
     { id: "input-check", source: "input", target: "check", type: "smoothstep" },
     {
-      id: "check-generate",
+      id: "check-iterate",
       source: "check",
       sourceHandle: "branch-top",
-      target: "generate",
+      target: "iterate",
       type: "smoothstep",
       label: "通过",
       labelStyle: {
@@ -1098,9 +1103,50 @@ function getSharedFlowEdges(): Edge[] {
       labelBgPadding: [6, 3],
       labelBgBorderRadius: 999,
     },
+    { id: "iterate-loop", source: "iterate", target: "loop", type: "smoothstep" },
+    {
+      id: "loop-iterate",
+      source: "loop",
+      sourceHandle: "branch-top",
+      target: "iterate",
+      type: "smoothstep",
+      label: "继续",
+      labelStyle: {
+        fill: "rgba(226,232,240,0.92)",
+        fontSize: 10,
+        fontWeight: 500,
+      },
+      labelShowBg: true,
+      labelBgStyle: {
+        fill: "rgba(15,23,42,0.92)",
+        stroke: "rgba(255,255,255,0.08)",
+      },
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 999,
+    },
+    {
+      id: "loop-generate",
+      source: "loop",
+      sourceHandle: "branch-mid",
+      target: "generate",
+      type: "smoothstep",
+      label: "完成",
+      labelStyle: {
+        fill: "rgba(226,232,240,0.92)",
+        fontSize: 10,
+        fontWeight: 500,
+      },
+      labelShowBg: true,
+      labelBgStyle: {
+        fill: "rgba(15,23,42,0.92)",
+        stroke: "rgba(255,255,255,0.08)",
+      },
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 999,
+    },
     { id: "generate-output", source: "generate", target: "output", type: "smoothstep" },
     { id: "missing-output", source: "missing", target: "output", type: "smoothstep" },
-    { id: "fallback-output", source: "fallback", target: "output", type: "smoothstep" },
+    { id: "fallback-iterate", source: "fallback", target: "iterate", type: "smoothstep" },
   ];
 }
 
