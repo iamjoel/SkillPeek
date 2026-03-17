@@ -1,12 +1,6 @@
 import "@xyflow/react/dist/style.css";
 import { Button } from "@my-better-t-app/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@my-better-t-app/ui/components/card";
+import { Card, CardContent } from "@my-better-t-app/ui/components/card";
 import { Input } from "@my-better-t-app/ui/components/input";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
@@ -21,10 +15,8 @@ import {
   Position,
   ReactFlow,
   getSmoothStepPath,
-  type Edge,
   type EdgeProps,
   type EdgeTypes,
-  type Node,
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
@@ -41,121 +33,61 @@ import {
 import { type DragEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type {
+  DataTransferItemWithEntry,
+  ExampleFlowEdge,
+  ExampleFlowNode,
+  FeatureAnalysis,
+  FlowExample,
+  ShowcaseResult,
+  ShowcaseRiskLevel,
+  SkillAnalysisResult,
+  UploadedSkillFile,
+} from "@/components/types";
 import { trpcClient } from "@/utils/trpc";
 
 const ACCEPTED_FILE_PATTERN =
   /\.(md|mdx|txt|json|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs)$/i;
 
-type UploadedSkillFile = {
-  path: string;
-  content: string;
-  size: number;
-};
-
-type DataTransferItemWithEntry = DataTransferItem & {
-  webkitGetAsEntry?: () => FileSystemEntry | null;
-};
-
-type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSkill.mutate>>;
-type FeatureAnalysis = SkillAnalysisResult["feature_analysis"];
-type ExampleFlowNodeData = { label: string };
-type ExampleFlowEdgeData = {
-  labelOffsetX?: number;
-  labelOffsetY?: number;
-  route?: "loop-back";
-  lift?: number;
-};
-type FlowExample = {
-  id: string;
-  title: string;
-  description: string;
-  output: string;
-  preview: string;
-  path: string[];
-  resultLabel: string;
-  tone?: "default" | "warning";
-};
-type ExampleFlowNode = Node<ExampleFlowNodeData, "step" | "decision">;
-type ExampleFlowEdge = Edge<ExampleFlowEdgeData>;
-
-const MOCK_SKILL_RESULT: SkillAnalysisResult = {
-  status: "success",
+const MOCK_SKILL_RESULT: ShowcaseResult = {
   skill_name: "Larry",
-  source: {
-    kind: "upload",
-    label: "Larry · ClawHub",
-    analyzed_files: ["https://clawhub.ai/OllieWazza/larry"],
-    file_count: 1,
-    model: "gemini-3-flash-preview",
-  },
-  language_note: "输出语言默认跟随用户请求所使用的语言。",
   feature_analysis: {
-    skill_name: "Larry",
     summary: "自动化 TikTok 幻灯片营销，从研究、生成到复盘迭代。",
-    skill_purpose: "将竞品研究、内容生成、发布和效果追踪串成可循环优化的营销流程。",
-    trigger_conditions: [
-      "用户要为 app 或产品搭建 TikTok 幻灯片营销流程",
-      "用户希望自动研究竞品、生成素材并持续复盘优化",
-    ],
-    non_trigger_conditions: [
-      "用户只想做一次性文案润色，不需要整套投放流程",
-      "用户不准备连接外部平台或提供营销数据",
-    ],
-    inputs: ["产品信息", "目标受众", "竞品线索", "可用渠道与账号配置"],
-    prechecks: ["确认定位清晰", "检查配置与密钥", "确认可访问外部服务"],
-    execution_steps: [
-      "研究竞品内容与热点形式",
-      "批量生成图像、文案和字幕",
-      "发布到 TikTok 与分发平台",
-      "回收分析数据并调整下一轮选题",
-    ],
     failure_modes: ["产品信息不足", "配置缺失", "外部平台返回异常"],
     outputs: ["TikTok 内容计划", "可发布素材", "复盘建议与下一轮方向"],
-    flow_breakdown: {
-      trigger: ["接收 TikTok 营销搭建请求", "确认属于自动化营销场景"],
-      input_parsing: ["整理产品定位与目标用户", "收集竞品和渠道配置"],
-      prechecks: ["验证配置是否完整", "确认外部服务可用"],
-      execution: ["研究竞品", "生成素材", "发布内容", "复盘效果并迭代"],
-      failure_paths: ["信息缺失时提示补充", "服务异常时切换为保守输出"],
-      outputs: ["返回内容计划", "给出可发布结果与下一步建议"],
-    },
-    assumptions: ["假设用户已经准备好产品信息，并愿意连接营销所需的外部服务。"],
-    mermaid: `flowchart TD
-    A["接收 TikTok 营销请求"] --> B{"信息与配置是否可用?"}
-    B -- "否" --> C["返回不触发说明"]
-    B -- "是" --> D["研究竞品与热点"]
-    D --> E["生成图像、文案与字幕"]
-    E --> F{"发布结果是否达标?"}
-    F -- "否" --> G["调整策略并继续迭代"]
-    F -- "是" --> H["输出可复用内容流程"]`,
   },
   safety_analysis: {
     risk_level: "caution",
-    is_malicious_or_unsafe: false,
     verdict: "能力边界清楚，但依赖外部平台和密钥配置，使用前应隔离验证。",
     findings: ["会调用外部营销与图像服务", "需要配置 Postiz 与图像生成密钥"],
-    metadata_review: ["用途明确", "配置需求与元数据存在落差"],
     permission_scope: ["读取本地配置", "写入报告文件", "调用外部 API"],
-    red_flags: ["涉及敏感密钥", "会写入本地分析文件"],
     trust_signals: ["目标清晰", "流程可审查", "输出可复盘"],
-    blocked_capabilities: [],
-    notes: ["适合在沙箱或测试环境中验证后再接入真实账号。"],
-    mermaid: `flowchart TD
-    A["读取 Skill"] --> B["检查元数据"]
-    B --> C["检查权限范围"]
-    C --> D["扫描密钥与外部调用"]
-    D --> E["输出 caution 结论"]`,
   },
 };
 
-const riskLevelLabels: Record<
-  SkillAnalysisResult["safety_analysis"]["risk_level"],
-  string
-> = {
+const riskLevelLabels: Record<ShowcaseRiskLevel, string> = {
   safe: "安全",
   caution: "低风险",
   unsafe: "高风险",
 };
+
+function toShowcaseResult(result: SkillAnalysisResult): ShowcaseResult {
+  return {
+    skill_name: result.skill_name,
+    feature_analysis: {
+      summary: result.feature_analysis.summary,
+      outputs: result.feature_analysis.outputs,
+      failure_modes: result.feature_analysis.failure_modes,
+    },
+    safety_analysis: {
+      risk_level: result.safety_analysis.risk_level,
+      verdict: result.safety_analysis.verdict,
+      findings: result.safety_analysis.findings,
+      permission_scope: result.safety_analysis.permission_scope,
+      trust_signals: result.safety_analysis.trust_signals,
+    },
+  };
+}
 
 function pickUploadLabel(files: UploadedSkillFile[]) {
   const firstRelativePath = files.find((file) => file.path.includes("/"))?.path;
@@ -223,7 +155,6 @@ export default function SkillIntakeWorkbench() {
           return {
             path: file.webkitRelativePath || file.name,
             content,
-            size: file.size,
           };
         }),
       );
@@ -341,7 +272,11 @@ export default function SkillIntakeWorkbench() {
 
   const result = analyzeSkill.isPending
     ? undefined
-    : analyzeSkill.data ?? (showMockResult ? MOCK_SKILL_RESULT : undefined);
+    : analyzeSkill.data
+      ? toShowcaseResult(analyzeSkill.data)
+      : showMockResult
+        ? MOCK_SKILL_RESULT
+        : undefined;
   const showResultPanel = analyzeSkill.isPending || Boolean(result);
 
   return (
@@ -512,7 +447,7 @@ export default function SkillIntakeWorkbench() {
   );
 }
 
-function FeatureTab({ result }: { result: SkillAnalysisResult }) {
+function FeatureTab({ result }: { result: ShowcaseResult }) {
   const feature = result.feature_analysis;
   const safety = result.safety_analysis;
   const [showSafetyModal, setShowSafetyModal] = useState(false);
@@ -805,13 +740,13 @@ function FlowCanvas({
   interactive = false,
 }: {
   nodes: ExampleFlowNode[];
-  edges: Edge[];
+  edges: ExampleFlowEdge[];
   heightClassName: string;
   interactive?: boolean;
 }) {
   return (
     <div className={cn("w-full", heightClassName)}>
-      <ReactFlow<ExampleFlowNode, Edge>
+      <ReactFlow<ExampleFlowNode, ExampleFlowEdge>
         nodes={nodes}
         edges={edges}
         nodeTypes={flowNodeTypes}
@@ -937,7 +872,6 @@ function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
         "iterate",
         "output",
       ],
-      resultLabel: "已进入优化循环",
     },
     {
       id: "manual-research",
@@ -960,7 +894,6 @@ function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
         "iterate",
         "output",
       ],
-      resultLabel: "已切到手动模式",
       tone: "warning",
     },
     {
@@ -983,7 +916,6 @@ function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
         "iterate",
         "output",
       ],
-      resultLabel: "已输出曝光建议",
     },
   ];
 }
@@ -1212,7 +1144,7 @@ function shortenText(text: string, maxLength: number) {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
-function buildSafetyPoints(result: SkillAnalysisResult) {
+function buildSafetyPoints(result: ShowcaseResult) {
   const candidates = [
     ...result.safety_analysis.permission_scope,
     ...result.safety_analysis.trust_signals,
