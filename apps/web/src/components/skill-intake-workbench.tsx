@@ -345,14 +345,17 @@ export default function SkillIntakeWorkbench() {
 
   return (
     <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-transparent">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-6 lg:px-8 lg:py-10">
-        <section className="rounded-[28px] border border-slate-200/80 bg-white/88 p-6 text-slate-950 shadow-[0_18px_60px_rgba(148,163,184,0.18)] backdrop-blur-xl md:p-8">
-          <div className="grid max-w-4xl gap-5">
-            <div className="grid gap-4">
-              <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-balance md:text-6xl">
-                SkillPeek
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+        <section className="px-5 py-2 text-slate-950 md:px-6">
+          <div className="grid max-w-4xl gap-3">
+            <div className="grid gap-1">
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-balance md:text-5xl">
+                <span className="text-slate-950">Skill</span>
+                <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-violet-500 bg-clip-text text-transparent">
+                  Peek
+                </span>
               </h1>
-              <p className="max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
+              <p className="max-w-2xl text-sm leading-6 text-slate-600 md:text-[15px]">
                 了解 Skill 功能边界，评估 Skill 安全风险。
               </p>
             </div>
@@ -521,8 +524,8 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
   const examples = buildFlowExamples(feature);
 
   return (
-    <div className="grid gap-5 text-slate-900">
-      <section className="grid gap-4 rounded-[28px] border border-slate-200/80 bg-white/92 px-5 py-5 shadow-[0_18px_50px_rgba(148,163,184,0.16)] md:px-6">
+    <section className="grid gap-5 rounded-[32px] border border-slate-200/80 bg-white/92 px-5 py-5 text-slate-900 shadow-[0_18px_50px_rgba(148,163,184,0.16)] md:px-6 md:py-5">
+      <div className="grid gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-2">
             <h2 className="text-2xl font-semibold tracking-[-0.04em] md:text-3xl">
@@ -548,15 +551,15 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
             {riskLevelLabels[safety.risk_level]}
           </button>
         </div>
-      </section>
+      </div>
 
-      <section className="grid gap-3">
+      <div className="grid gap-4 border-t border-slate-200/80 pt-4">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
           <Workflow className="size-4 text-sky-600" />
           流程示例
         </div>
         <FlowExamplesSection examples={examples} />
-      </section>
+      </div>
 
       {showSafetyModal ? (
         <SafetyModal
@@ -568,7 +571,7 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
           }}
         />
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -583,7 +586,7 @@ const flowEdgeTypes = {
 
 function StepFlowNode({ data }: NodeProps<ExampleFlowNode>) {
   return (
-    <div className="relative rounded-[12px] border border-slate-200 bg-white px-2 py-1.5 text-center text-[10px] font-medium text-slate-700 shadow-[0_6px_18px_rgba(148,163,184,0.12)]">
+    <div className="relative rounded-[12px] border border-slate-200 bg-white px-2.5 py-1.5 text-center text-[11px] font-semibold text-slate-700 shadow-[0_8px_24px_rgba(148,163,184,0.16)]">
       <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-400" />
       <Handle type="source" position={Position.Right} className="!size-2 !border-2 !border-white !bg-slate-400" />
       <span className="leading-4">{data.label}</span>
@@ -616,8 +619,8 @@ function DecisionFlowNode({ data }: NodeProps<ExampleFlowNode>) {
         className="!size-2 !border-2 !border-white !bg-slate-400"
         style={{ top: "82%" }}
       />
-      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-slate-200 bg-white shadow-[0_6px_18px_rgba(148,163,184,0.12)]" />
-      <div className="absolute inset-0 grid place-items-center px-3 text-center text-[10px] font-medium leading-4 text-slate-700">
+      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(148,163,184,0.16)]" />
+      <div className="absolute inset-0 grid place-items-center px-3 text-center text-[11px] font-semibold leading-4 text-slate-700">
         {data.label}
       </div>
     </div>
@@ -641,29 +644,29 @@ function AnnotatedFlowEdge({
   const lift = data?.lift ?? 64;
   const [edgePath, labelX, labelY] = isLoopBack
     ? (() => {
-        const loopTopY = Math.min(sourceY, targetY) - lift;
-        const exitX = sourceX + 18;
-        const entryX = targetX - 18;
-        const path = [
-          `M ${sourceX} ${sourceY}`,
-          `L ${exitX} ${sourceY}`,
-          `L ${exitX} ${loopTopY}`,
-          `L ${entryX} ${loopTopY}`,
-          `L ${entryX} ${targetY}`,
-          `L ${targetX} ${targetY}`,
-        ].join(" ");
+      const loopTopY = Math.min(sourceY, targetY) - lift;
+      const exitX = sourceX + 18;
+      const entryX = targetX - 18;
+      const path = [
+        `M ${sourceX} ${sourceY}`,
+        `L ${exitX} ${sourceY}`,
+        `L ${exitX} ${loopTopY}`,
+        `L ${entryX} ${loopTopY}`,
+        `L ${entryX} ${targetY}`,
+        `L ${targetX} ${targetY}`,
+      ].join(" ");
 
-        return [path, (exitX + entryX) / 2, loopTopY] as const;
-      })()
+      return [path, (exitX + entryX) / 2, loopTopY] as const;
+    })()
     : getSmoothStepPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        sourcePosition,
-        targetPosition,
-        borderRadius: 18,
-      });
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition,
+      targetPosition,
+      borderRadius: 18,
+    });
 
   return (
     <>
@@ -673,9 +676,8 @@ function AnnotatedFlowEdge({
           <div
             className="pointer-events-none absolute rounded-full border border-slate-200 bg-white/96 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-700 shadow-[0_6px_18px_rgba(148,163,184,0.18)]"
             style={{
-              transform: `translate(-50%, -50%) translate(${labelX + (data?.labelOffsetX ?? 0)}px, ${
-                labelY + (data?.labelOffsetY ?? 0)
-              }px)`,
+              transform: `translate(-50%, -50%) translate(${labelX + (data?.labelOffsetX ?? 0)}px, ${labelY + (data?.labelOffsetY ?? 0)
+                }px)`,
             }}
           >
             {label}
@@ -698,28 +700,34 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
   const { nodes, edges } = createExampleFlow(activeExample);
 
   return (
-    <div className="grid gap-4 rounded-[28px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_18px_50px_rgba(148,163,184,0.14)] lg:grid-cols-[168px_1fr]">
-      <div className="grid gap-1.5 self-start">
+    <div className="grid gap-5 lg:grid-cols-[176px_1fr]">
+      <div className="grid gap-3 self-start">
         {examples.map((example) => (
           <button
             key={example.id}
             type="button"
             className={cn(
-              "rounded-xl px-3 py-2.5 text-left transition-colors",
+              "group relative overflow-hidden rounded-2xl border px-4 py-3 text-left transition-all",
               example.id === activeExample.id
-                ? "bg-slate-900 text-white"
-                : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                ? "border-sky-200 bg-sky-50 text-slate-950 shadow-[0_12px_28px_rgba(14,165,233,0.12)]"
+                : "border-transparent bg-slate-50/85 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900",
             )}
             onClick={() => {
               setActiveId(example.id);
             }}
           >
+            <span
+              className={cn(
+                "absolute inset-y-3 left-0 w-1 rounded-r-full transition-colors",
+                example.id === activeExample.id ? "bg-sky-500" : "bg-transparent group-hover:bg-slate-300",
+              )}
+            />
             <div className="text-sm font-medium">{example.title}</div>
           </button>
         ))}
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-1">
             <div className="text-base font-medium text-slate-900">{activeExample.title}</div>
@@ -727,7 +735,7 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50/80">
+        <div className="relative overflow-hidden rounded-[26px] bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(248,250,252,0.92))] shadow-[inset_0_0_0_1px_rgba(226,232,240,0.9)]">
           <button
             type="button"
             aria-label="全屏查看流程图"
@@ -738,15 +746,17 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
           >
             <Expand className="size-4" />
           </button>
-          <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-52" />
+          <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-72" />
         </div>
 
-        <div className="grid gap-2 rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-4">
-          <div className="text-xs tracking-[0.16em] text-slate-500">输出示例</div>
-          <div className="text-sm text-slate-700">{activeExample.output}</div>
-          <pre className="overflow-x-auto rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs leading-6 text-slate-700">
-            <code>{activeExample.preview}</code>
-          </pre>
+        <div className="grid gap-3 border-t border-slate-200/80 pt-4">
+          <div className="text-xs tracking-[0.16em] text-slate-500">输出结果</div>
+          <div className="grid gap-3 rounded-[22px] bg-slate-50/90 px-4 py-4 ring-1 ring-inset ring-slate-200/90">
+            <div className="text-sm font-medium text-slate-800">{activeExample.output}</div>
+            <pre className="overflow-x-auto text-xs leading-6 text-slate-700">
+              <code>{activeExample.preview}</code>
+            </pre>
+          </div>
         </div>
       </div>
 
@@ -816,8 +826,8 @@ function FlowCanvas({
         <Background
           variant={BackgroundVariant.Dots}
           gap={16}
-          size={1}
-          color="rgba(148, 163, 184, 0.3)"
+          size={1.2}
+          color="rgba(100, 116, 139, 0.34)"
         />
         {interactive ? (
           <Controls
