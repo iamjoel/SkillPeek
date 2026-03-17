@@ -1,3 +1,4 @@
+import "@xyflow/react/dist/style.css";
 import { Button } from "@my-better-t-app/ui/components/button";
 import {
   Card,
@@ -10,28 +11,47 @@ import { Input } from "@my-better-t-app/ui/components/input";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type NodeTypes,
+} from "@xyflow/react";
+import {
   CheckCheck,
   CircleAlert,
   FolderSearch,
   LoaderCircle,
+  MoreHorizontal,
   Orbit,
+  Play,
+  RotateCcw,
   ShieldAlert,
   Shield,
   Sparkles,
   Upload,
-  WandSparkles,
   Workflow,
 } from "lucide-react";
-import { type DragEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  startTransition,
+  type DragEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { trpcClient } from "@/utils/trpc";
 
 const ACCEPTED_FILE_PATTERN =
   /\.(md|mdx|txt|json|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs)$/i;
-
-let mermaidPromise: Promise<(typeof import("mermaid"))["default"]> | null = null;
-let mermaidInitialized = false;
 
 type UploadedSkillFile = {
   path: string;
@@ -44,6 +64,28 @@ type DataTransferItemWithEntry = DataTransferItem & {
 };
 
 type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSkill.mutate>>;
+type FeatureAnalysis = SkillAnalysisResult["feature_analysis"];
+type FlowDemoState = "idle" | "running" | "done" | "warning" | "result";
+type FlowDemoNodeData = {
+  title: string;
+  detail: string;
+  state: FlowDemoState;
+};
+type FlowDemoStep = {
+  id: string;
+  title: string;
+  detail: string;
+};
+type FlowDemoExample = {
+  id: string;
+  name: string;
+  summary: string;
+  resultLabel: string;
+  resultValue: string;
+  outcome: "success" | "warning";
+  steps: FlowDemoStep[];
+};
+type FlowDemoNode = Node<FlowDemoNodeData, "status">;
 
 const MOCK_SKILL_RESULT: SkillAnalysisResult = {
   status: "success",
@@ -118,43 +160,6 @@ const MOCK_SKILL_RESULT: SkillAnalysisResult = {
   },
 };
 
-const featureStageMeta: Array<{
-  key: keyof SkillAnalysisResult["feature_analysis"]["flow_breakdown"];
-  title: string;
-  hint: string;
-}> = [
-  {
-    key: "trigger",
-    title: "识别场景",
-    hint: "先判断这是不是它该接手的问题。",
-  },
-  {
-    key: "input_parsing",
-    title: "整理输入",
-    hint: "读取标题、结构和关键字段。",
-  },
-  {
-    key: "prechecks",
-    title: "执行前校验",
-    hint: "确认内容完整、结构可用。",
-  },
-  {
-    key: "execution",
-    title: "生成结果",
-    hint: "进入主流程并产出结构化内容。",
-  },
-  {
-    key: "failure_paths",
-    title: "异常回退",
-    hint: "信息不足或结构冲突时如何降级。",
-  },
-  {
-    key: "outputs",
-    title: "返回输出",
-    hint: "最后交付给用户的内容形态。",
-  },
-];
-
 const statusBadges = ["结构化输出", "流程可解释", "结果可预期"];
 
 const riskLevelLabels: Record<
@@ -166,6 +171,10 @@ const riskLevelLabels: Record<
   unsafe: "高风险",
 };
 
+const flowNodeTypes = {
+  status: FlowStatusNode,
+} satisfies NodeTypes;
+
 function pickUploadLabel(files: UploadedSkillFile[]) {
   const firstRelativePath = files.find((file) => file.path.includes("/"))?.path;
   if (!firstRelativePath) {
@@ -173,49 +182,6 @@ function pickUploadLabel(files: UploadedSkillFile[]) {
   }
 
   return firstRelativePath.split("/")[0] || "Uploaded Skill";
-}
-
-async function getMermaid() {
-  if (!mermaidPromise) {
-    mermaidPromise = import("mermaid").then((module) => {
-      const mermaid = module.default;
-
-      if (!mermaidInitialized) {
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: "strict",
-          theme: "base",
-          themeVariables: {
-            background: "#020617",
-            primaryColor: "#0f172a",
-            primaryTextColor: "#e2e8f0",
-            primaryBorderColor: "#334155",
-            lineColor: "#60a5fa",
-            secondaryColor: "#111827",
-            secondaryTextColor: "#e2e8f0",
-            secondaryBorderColor: "#475569",
-            tertiaryColor: "#1e293b",
-            tertiaryTextColor: "#e2e8f0",
-            tertiaryBorderColor: "#f59e0b",
-            clusterBkg: "#0f172a",
-            clusterBorder: "#334155",
-            edgeLabelBackground: "#0f172a",
-            fontFamily: "IBM Plex Sans",
-          },
-          flowchart: {
-            curve: "basis",
-            htmlLabels: true,
-            useMaxWidth: true,
-          },
-        });
-        mermaidInitialized = true;
-      }
-
-      return mermaid;
-    });
-  }
-
-  return mermaidPromise;
 }
 
 export default function SkillIntakeWorkbench() {
@@ -664,20 +630,13 @@ export default function SkillIntakeWorkbench() {
 
 function FeatureTab({ result }: { result: SkillAnalysisResult }) {
   const feature = result.feature_analysis;
-  const useCases = feature.trigger_conditions.slice(0, 4);
   const outputs = feature.outputs.slice(0, 4);
-  const workflowStages = featureStageMeta
-    .map((stage) => ({
-      ...stage,
-      items: feature.flow_breakdown[stage.key],
-    }))
-    .filter((stage) => stage.items.length > 0);
 
   return (
     <div className="grid gap-8">
       <section className="relative overflow-hidden rounded-[32px] border border-cyan-400/12 bg-[linear-gradient(135deg,rgba(8,47,73,0.52),rgba(15,23,42,0.94)_45%,rgba(30,41,59,0.92))] p-6 text-white shadow-[0_24px_100px_rgba(6,182,212,0.12)] md:p-8">
         <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.24),transparent_52%)]" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="relative grid gap-6">
           <div className="grid gap-5">
             <div className="flex flex-wrap gap-2">
               {statusBadges.map((badge) => (
@@ -695,15 +654,12 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
               <h2 className="max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-balance md:text-5xl">
                 {result.skill_name}
               </h2>
-              <p className="max-w-2xl text-base leading-8 text-slate-200 md:text-lg">
-                {feature.summary}
-              </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <SummaryBlock
-                label="适用场景"
-                value={useCases[0] ?? "适合处理结构清晰、需要规则化输出的任务。"}
+                label="技能目的"
+                value={feature.skill_purpose}
               />
               <SummaryBlock
                 label="最终产物"
@@ -712,90 +668,15 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
             </div>
           </div>
 
-          <div className="grid gap-4">
-            <HighlightPanel
-              icon={<Sparkles className="size-4 text-cyan-200" />}
-              title="最佳使用时机"
-              items={useCases}
-              emptyLabel="适合在需要结构化处理时调用。"
-              tone="cyan"
-            />
-            <HighlightPanel
-              icon={<WandSparkles className="size-4 text-violet-200" />}
-              title="你会得到什么"
-              items={outputs}
-              emptyLabel="输出会以清晰、可继续处理的结果形式返回。"
-              tone="violet"
-            />
-          </div>
+          <SkillFlowShowcase feature={feature} />
         </div>
       </section>
 
-      <section className="grid gap-5">
-        <SectionHeading
-          eyebrow="主流程"
-          title="一眼看懂这个 Skill 如何工作"
-          description="把触发条件、校验动作和最终输出压缩成一条容易理解的流程。"
-        />
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <MermaidPanel mermaid={feature.mermaid} description="技能工作流" />
-
-          <Card className="border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.88))] text-slate-100 shadow-[0_20px_60px_rgba(2,6,23,0.3)]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl text-white">流程拆解</CardTitle>
-              <CardDescription className="text-sm leading-6 text-slate-400">
-                用 6 个阶段快速理解它从接收请求到返回结果的关键动作。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {workflowStages.map((stage, index) => (
-                <div
-                  key={stage.key}
-                  className="grid gap-2 rounded-2xl border border-white/8 bg-white/4 p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-8 items-center justify-center rounded-full bg-cyan-400/12 text-sm font-semibold text-cyan-100">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-white">{stage.title}</div>
-                      <div className="text-xs leading-5 text-slate-400">{stage.hint}</div>
-                    </div>
-                  </div>
-                  <p className="pl-11 text-sm leading-6 text-slate-300">{stage.items[0]}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <ShowcaseSection
-          eyebrow="何时使用"
-          title="哪些情况下该交给它"
-          description="把适合与不适合的场景分开看，判断是否应该触发会更快。"
-        >
-          <div className="grid gap-4">
-            <ConditionCard
-              title="推荐使用"
-              items={feature.trigger_conditions}
-              emptyLabel="适合用于结构化处理与明确输出的任务。"
-              tone="positive"
-            />
-            <ConditionCard
-              title="不建议使用"
-              items={feature.non_trigger_conditions}
-              emptyLabel="没有明显的非触发条件。"
-              tone="neutral"
-            />
-          </div>
-        </ShowcaseSection>
-
+      <section className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
         <ShowcaseSection
           eyebrow="如何工作"
           title="从输入到生成，中间发生了什么"
-          description="把输入、校验和执行步骤拆开，便于用户快速理解 Skill 的工作方式。"
+          description="把输入、校验和执行步骤拆开，便于快速理解 Skill 的运行方式。"
         >
           <div className="grid gap-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -816,26 +697,20 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
               items={feature.execution_steps}
               emptyLabel="未给出执行步骤。"
             />
+            <MoreUsagePanel feature={feature} />
           </div>
         </ShowcaseSection>
-      </section>
 
-      <section className="grid gap-5">
-        <SectionHeading
-          eyebrow="结果"
-          title="你将获得什么"
-          description="输出结果会被优先强调，失败路径则单独提示，避免混在一起。"
-        />
-        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-4">
           <Card className="overflow-hidden border border-cyan-400/12 bg-[linear-gradient(180deg,rgba(8,47,73,0.22),rgba(15,23,42,0.94))] text-slate-100 shadow-[0_20px_70px_rgba(6,182,212,0.12)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-xl text-white">输出结果</CardTitle>
               <CardDescription className="text-sm leading-6 text-slate-300">
-                最终交付会以清晰、可直接继续使用的结果形式返回。
+                最终交付会以清晰、可继续处理的结果形式返回。
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3">
                 {feature.outputs.map((item) => (
                   <div
                     key={item}
@@ -850,62 +725,39 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
                 <div className="text-xs tracking-[0.2em] text-slate-500">交付说明</div>
                 <div className="mt-3 grid gap-3 text-sm leading-7 text-slate-300">
                   <p>{result.language_note}</p>
-                  <p>{feature.skill_purpose}</p>
+                  <p>{feature.summary}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-4">
-            <Card className="border border-amber-400/16 bg-[linear-gradient(180deg,rgba(120,53,15,0.18),rgba(15,23,42,0.94))] text-slate-100">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-xl text-white">
-                  <CircleAlert className="size-5 text-amber-200" />
-                  常见失败情况
-                </CardTitle>
-                <CardDescription className="text-sm leading-6 text-slate-300">
-                  这些情况通常意味着输入不足、结构冲突，或需要走兜底方案。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {feature.failure_modes.length === 0 ? (
-                  <div className="rounded-2xl border border-white/8 bg-white/4 p-4 text-sm leading-6 text-slate-300">
-                    没有明显的失败模式，整体流程相对稳定。
-                  </div>
-                ) : (
-                  feature.failure_modes.map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-amber-300/14 bg-amber-400/8 p-4 text-sm leading-6 text-amber-50"
-                    >
-                      {item}
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border border-white/8 bg-white/4 text-slate-100">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg text-white">使用假设</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {(feature.assumptions.length === 0
-                    ? ["当前没有额外假设。"]
-                    : feature.assumptions
-                  ).map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-white/8 bg-slate-950/55 p-4 text-sm leading-6 text-slate-300"
-                    >
-                      {item}
-                    </div>
-                  ))}
+          <Card className="border border-amber-400/16 bg-[linear-gradient(180deg,rgba(120,53,15,0.18),rgba(15,23,42,0.94))] text-slate-100">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-xl text-white">
+                <CircleAlert className="size-5 text-amber-200" />
+                常见失败情况
+              </CardTitle>
+              <CardDescription className="text-sm leading-6 text-slate-300">
+                这些情况通常意味着输入不足、结构冲突，或需要走兜底方案。
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {feature.failure_modes.length === 0 ? (
+                <div className="rounded-2xl border border-white/8 bg-white/4 p-4 text-sm leading-6 text-slate-300">
+                  没有明显的失败模式，整体流程相对稳定。
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              ) : (
+                feature.failure_modes.map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-amber-300/14 bg-amber-400/8 p-4 text-sm leading-6 text-amber-50"
+                  >
+                    {item}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
         </div>
       </section>
     </div>
@@ -949,173 +801,468 @@ function SecurityTab({ result }: { result: SkillAnalysisResult }) {
   );
 }
 
-function MermaidPanel({ mermaid, description }: { mermaid: string; description: string }) {
-  const inlineContainerRef = useRef<HTMLDivElement>(null);
-  const expandedContainerRef = useRef<HTMLDivElement>(null);
-  const bindFunctionsRef = useRef<((element: Element) => void) | undefined>(undefined);
-  const renderId = useId().replace(/:/g, "");
-  const [svg, setSvg] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [isRendering, setIsRendering] = useState(true);
-  const [isExpanded, setIsExpanded] = useState(false);
+function SkillFlowShowcase({ feature }: { feature: FeatureAnalysis }) {
+  const examples = buildFlowExamples(feature);
+  const [selectedExampleId, setSelectedExampleId] = useState(examples[0]?.id ?? "");
+  const [runIndex, setRunIndex] = useState(-1);
+  const [runState, setRunState] = useState<"idle" | "running" | "done">("idle");
+
+  const selectedExample = examples.find((example) => example.id === selectedExampleId) ?? examples[0];
+  const flowNodes = createFlowDemoNodes(selectedExample, runIndex, runState);
+  const flowEdges = createFlowDemoEdges(selectedExample, runIndex, runState);
+  const currentStep =
+    runState === "running" && runIndex >= 0 ? selectedExample.steps[runIndex] : undefined;
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function renderMermaid() {
-      setIsRendering(true);
-      setError(null);
-
-      try {
-        const mermaidApi = await getMermaid();
-        const { svg: renderedSvg, bindFunctions } = await mermaidApi.render(
-          `skillpeek-mermaid-${renderId}`,
-          mermaid,
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        setSvg(renderedSvg);
-        bindFunctionsRef.current = bindFunctions;
-        setIsRendering(false);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-
-        setError(err instanceof Error ? err.message : "Mermaid render failed");
-        setIsRendering(false);
-      }
-    }
-
-    void renderMermaid();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mermaid, renderId]);
-
-  useEffect(() => {
-    const bindFunctions = bindFunctionsRef.current;
-    if (!bindFunctions) {
+    if (runState !== "running" || !selectedExample) {
       return;
     }
 
-    queueMicrotask(() => {
-      if (inlineContainerRef.current) {
-        bindFunctions(inlineContainerRef.current);
-      }
+    if (runIndex >= selectedExample.steps.length) {
+      setRunState("done");
+      return;
+    }
 
-      if (expandedContainerRef.current) {
-        bindFunctions(expandedContainerRef.current);
-      }
+    const timer = window.setTimeout(() => {
+      setRunIndex((current) => current + 1);
+    }, 820);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [runIndex, runState, selectedExample]);
+
+  useEffect(() => {
+    startTransition(() => {
+      setSelectedExampleId(examples[0]?.id ?? "");
+      setRunIndex(-1);
+      setRunState("idle");
     });
-  }, [svg, isExpanded]);
+  }, [feature.skill_name]);
 
-  useEffect(() => {
-    if (!isExpanded) {
-      return;
-    }
+  if (!selectedExample) {
+    return null;
+  }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsExpanded(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isExpanded]);
+  const runLabel =
+    runState === "running"
+      ? `正在运行 · ${currentStep?.title ?? "准备中"}`
+      : runState === "done"
+        ? selectedExample.outcome === "warning"
+          ? "已完成 · 已走回退路径"
+          : "已完成 · 已生成结果"
+        : "等待运行";
 
   return (
-    <>
-      <Card className="border border-white/8 bg-black/18 text-slate-100">
-        <CardHeader className="border-b border-white/8">
-          <CardTitle className="flex items-center justify-between gap-3 text-sm text-white">
-            <span>{description}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-9 text-lg text-slate-300 hover:bg-white/6 hover:text-white"
-              aria-label="全屏查看流程图"
-              onClick={() => {
-                setIsExpanded(true);
-              }}
-            >
-              🔍
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="border border-white/8 bg-slate-950/60 p-3">
-            {isRendering ? (
-              <div className="flex min-h-56 items-center justify-center text-sm text-slate-400">
-                <LoaderCircle className="mr-2 size-4 animate-spin" />
-                正在渲染 Mermaid
-              </div>
-            ) : error ? (
-              <div className="min-h-56 p-3 text-sm leading-6 text-rose-300">
-                Mermaid 渲染失败：{error}
-              </div>
-            ) : (
-              <div
-                ref={inlineContainerRef}
-                data-size="inline"
-                className="mermaid-preview overflow-auto"
-                dangerouslySetInnerHTML={{ __html: svg }}
-              />
-            )}
+    <div className="grid gap-5 rounded-[30px] border border-white/10 bg-slate-950/36 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:p-5">
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr] xl:items-start">
+        <div className="grid gap-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-cyan-100">
+            <Sparkles className="size-4" />
+            流程示例
           </div>
-        </CardContent>
-      </Card>
+          <div className="max-w-xl text-sm leading-7 text-slate-300">
+            不用看抽象说明，直接运行 3 个典型路径，观察它如何读取输入、执行校验并返回结果。
+          </div>
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
+            {examples.map((example) => (
+              <button
+                key={example.id}
+                type="button"
+                className={cn(
+                  "grid gap-2 rounded-[22px] border px-4 py-4 text-left transition-all",
+                  example.id === selectedExample.id
+                    ? "border-cyan-300/28 bg-cyan-400/12 shadow-[0_12px_40px_rgba(34,211,238,0.12)]"
+                    : "border-white/8 bg-white/4 hover:border-white/14 hover:bg-white/6",
+                )}
+                onClick={() => {
+                  startTransition(() => {
+                    setSelectedExampleId(example.id);
+                    setRunIndex(-1);
+                    setRunState("idle");
+                  });
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-white">{example.name}</div>
+                  <span
+                    className={cn(
+                      "rounded-full border px-2 py-1 text-[10px] tracking-[0.18em]",
+                      example.outcome === "warning"
+                        ? "border-amber-300/20 bg-amber-400/10 text-amber-100"
+                        : "border-cyan-300/20 bg-cyan-400/10 text-cyan-100",
+                    )}
+                  >
+                    {example.outcome === "warning" ? "回退" : "直达"}
+                  </span>
+                </div>
+                <div className="text-sm leading-6 text-slate-300">{example.summary}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {isExpanded ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/88 px-4 py-5 backdrop-blur-md sm:px-6 sm:py-6">
-          <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/50">
-            <div className="flex items-center justify-between gap-4 border-b border-white/8 px-5 py-4">
-              <div>
-                <div className="text-sm font-semibold text-white">{description}</div>
-                <div className="mt-1 text-xs text-slate-400">Esc 关闭</div>
+        <Card className="overflow-hidden border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.82),rgba(2,6,23,0.82))] text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.3)]">
+          <CardHeader className="gap-4 border-b border-white/8 pb-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div className="grid gap-2">
+                <CardTitle className="text-xl text-white">{selectedExample.name}</CardTitle>
+                <CardDescription className="text-sm leading-6 text-slate-300">
+                  {selectedExample.summary}
+                </CardDescription>
               </div>
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="size-10 text-xl text-slate-300 hover:bg-white/6 hover:text-white"
-                aria-label="关闭全屏查看"
+                size="sm"
+                className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+                disabled={runState === "running"}
                 onClick={() => {
-                  setIsExpanded(false);
+                  setRunIndex(0);
+                  setRunState("running");
                 }}
               >
-                ✕
+                {runState === "done" ? <RotateCcw className="size-4" /> : <Play className="size-4" />}
+                {runState === "done" ? "重新运行" : "运行示例"}
               </Button>
             </div>
 
-            <div className="flex-1 overflow-auto px-4 py-4 sm:px-6 sm:py-6">
-              {error ? (
-                <div className="rounded-2xl border border-rose-400/20 bg-rose-500/8 p-4 text-sm leading-6 text-rose-300">
-                  Mermaid 渲染失败：{error}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-white/8 bg-slate-950/70 p-4 sm:p-6">
-                  <div
-                    ref={expandedContainerRef}
-                    data-size="fullscreen"
-                    className="mermaid-preview overflow-auto"
-                    dangerouslySetInnerHTML={{ __html: svg }}
-                  />
-                </div>
-              )}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                {runLabel}
+              </span>
+              <span>
+                {runState === "idle"
+                  ? "点击运行后会逐步点亮当前步骤。"
+                  : runState === "running"
+                    ? "当前节点与连线会实时高亮。"
+                    : "流程结束后会显示最终输出。"}
+              </span>
             </div>
-          </div>
+          </CardHeader>
+          <CardContent className="grid gap-5 p-4 md:p-5">
+            <div className="overflow-hidden rounded-[24px] border border-white/8 bg-slate-950/70">
+              <div className="h-[380px] w-full">
+                <ReactFlow<FlowDemoNode, Edge>
+                  key={selectedExample.id}
+                  nodes={flowNodes}
+                  edges={flowEdges}
+                  nodeTypes={flowNodeTypes}
+                  fitView
+                  fitViewOptions={{ padding: 0.14 }}
+                  nodesDraggable={false}
+                  nodesConnectable={false}
+                  elementsSelectable={false}
+                  panOnDrag
+                  zoomOnDoubleClick={false}
+                  minZoom={0.7}
+                >
+                  <Background
+                    variant={BackgroundVariant.Dots}
+                    gap={18}
+                    size={1}
+                    color="rgba(148, 163, 184, 0.22)"
+                  />
+                  <Controls position="bottom-right" showInteractive={false} />
+                </ReactFlow>
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
+                <div className="text-xs tracking-[0.18em] text-slate-500">当前状态</div>
+                <div className="mt-3 text-base font-medium text-white">
+                  {runState === "idle"
+                    ? "还没有开始运行"
+                    : runState === "running"
+                      ? currentStep?.title ?? "正在准备"
+                      : selectedExample.resultLabel}
+                </div>
+                <div className="mt-2 text-sm leading-7 text-slate-300">
+                  {runState === "idle"
+                    ? "点击运行后，会依次展示分析 Skill 的每一个关键动作。"
+                    : runState === "running"
+                      ? currentStep?.detail
+                      : selectedExample.resultValue}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-cyan-300/12 bg-cyan-400/8 p-4">
+                <div className="text-xs tracking-[0.18em] text-cyan-100/70">最终输出</div>
+                <div className="mt-3 text-base font-medium text-white">{selectedExample.resultLabel}</div>
+                <div className="mt-2 text-sm leading-7 text-slate-100">{selectedExample.resultValue}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function FlowStatusNode({
+  data,
+}: NodeProps<FlowDemoNode>) {
+  const stateClass =
+    data.state === "running"
+      ? "border-cyan-300/30 bg-cyan-400/12 shadow-[0_0_0_1px_rgba(34,211,238,0.12),0_16px_40px_rgba(34,211,238,0.12)]"
+      : data.state === "done"
+        ? "border-emerald-300/24 bg-emerald-400/10"
+        : data.state === "warning"
+          ? "border-amber-300/24 bg-amber-400/10"
+          : data.state === "result"
+            ? "border-violet-300/24 bg-violet-400/12"
+            : "border-white/8 bg-slate-950/80";
+
+  const dotClass =
+    data.state === "running"
+      ? "bg-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.7)]"
+      : data.state === "done"
+        ? "bg-emerald-300"
+        : data.state === "warning"
+          ? "bg-amber-300"
+          : data.state === "result"
+            ? "bg-violet-300"
+            : "bg-slate-500";
+
+  return (
+    <div className={cn("w-[220px] rounded-[22px] border p-4 text-left backdrop-blur-sm", stateClass)}>
+      <Handle type="target" position={Position.Left} className="!opacity-0" />
+      <Handle type="source" position={Position.Right} className="!opacity-0" />
+      <div className="flex items-center gap-2">
+        <span className={cn("size-2.5 rounded-full", dotClass)} />
+        <span className="text-[11px] tracking-[0.18em] text-slate-400">
+          {data.state === "running"
+            ? "RUNNING"
+            : data.state === "done"
+              ? "DONE"
+              : data.state === "warning"
+                ? "FALLBACK"
+                : data.state === "result"
+                  ? "OUTPUT"
+                  : "WAITING"}
+        </span>
+      </div>
+      <div className="mt-3 text-sm font-medium text-white">{data.title}</div>
+      <div className="mt-2 text-xs leading-6 text-slate-300">{data.detail}</div>
+    </div>
+  );
+}
+
+function buildFlowExamples(feature: FeatureAnalysis): FlowDemoExample[] {
+  return [
+    {
+      id: "direct-hit",
+      name: "标准命中",
+      summary: "输入完整、结构清晰时，流程会直接进入生成阶段并返回最终结果。",
+      resultLabel: "输出结果",
+      resultValue: feature.outputs[0] ?? "返回结构化结果。",
+      outcome: "success",
+      steps: [
+        {
+          id: "receive",
+          title: "接收请求",
+          detail: feature.trigger_conditions[0] ?? feature.skill_purpose,
+        },
+        {
+          id: "parse",
+          title: "解析输入",
+          detail: feature.inputs[0] ?? "读取用户输入与上下文。",
+        },
+        {
+          id: "check",
+          title: "执行校验",
+          detail: feature.prechecks[0] ?? "确认输入完整、结构可用。",
+        },
+        {
+          id: "generate",
+          title: "生成结果",
+          detail: feature.execution_steps[0] ?? "进入主流程，组织最终输出。",
+        },
+        {
+          id: "deliver",
+          title: "返回输出",
+          detail: feature.outputs[0] ?? "交付结构化结果。",
+        },
+      ],
+    },
+    {
+      id: "missing-input",
+      name: "信息不足",
+      summary: "当关键输入缺失时，流程会停在校验阶段，并直接返回补充说明。",
+      resultLabel: "回退结果",
+      resultValue: feature.failure_modes[0] ?? "提示补充必要输入后再继续。",
+      outcome: "warning",
+      steps: [
+        {
+          id: "receive",
+          title: "接收请求",
+          detail: feature.trigger_conditions[0] ?? "识别到需要调用这个 Skill。",
+        },
+        {
+          id: "parse",
+          title: "整理输入",
+          detail: feature.inputs[1] ?? feature.inputs[0] ?? "整理现有输入。",
+        },
+        {
+          id: "check",
+          title: "发现缺失",
+          detail: feature.prechecks[0] ?? "校验时发现必要字段不足。",
+        },
+        {
+          id: "fallback",
+          title: "返回补充说明",
+          detail: feature.failure_modes[0] ?? "请用户补充缺失信息。",
+        },
+      ],
+    },
+    {
+      id: "structure-fallback",
+      name: "结构回退",
+      summary: "当模板与内容结构不匹配时，会走兜底路径，尽量交付一个可用结果。",
+      resultLabel: "兜底输出",
+      resultValue:
+        feature.failure_modes[1] ?? feature.outputs.at(-1) ?? "回退到保守结构后继续输出。",
+      outcome: "success",
+      steps: [
+        {
+          id: "receive",
+          title: "接收请求",
+          detail: feature.trigger_conditions[1] ?? feature.skill_purpose,
+        },
+        {
+          id: "parse",
+          title: "提取结构",
+          detail: feature.inputs[0] ?? "先读取标题、内容和结构。",
+        },
+        {
+          id: "conflict",
+          title: "发现冲突",
+          detail: feature.failure_modes[1] ?? "模板与内容结构不一致。",
+        },
+        {
+          id: "fallback",
+          title: "切到兜底方案",
+          detail: feature.flow_breakdown.failure_paths[0] ?? "切换到更保守的处理路径。",
+        },
+        {
+          id: "deliver",
+          title: "交付结果",
+          detail: feature.outputs.at(-1) ?? "输出保底结果。",
+        },
+      ],
+    },
+  ];
+}
+
+function createFlowDemoNodes(
+  example: FlowDemoExample,
+  runIndex: number,
+  runState: "idle" | "running" | "done",
+): FlowDemoNode[] {
+  const yPattern = [0, -52, 52, -32, 0];
+
+  return example.steps.map((step, index) => {
+    let state: FlowDemoState = "idle";
+
+    if (runState === "running") {
+      if (index < runIndex) {
+        state = "done";
+      } else if (index === runIndex) {
+        state = "running";
+      }
+    }
+
+    if (runState === "done") {
+      if (index === example.steps.length - 1) {
+        state = example.outcome === "warning" ? "warning" : "result";
+      } else {
+        state = "done";
+      }
+    }
+
+    return {
+      id: step.id,
+      type: "status",
+      draggable: false,
+      selectable: false,
+      position: {
+        x: index * 245,
+        y: yPattern[index] ?? 0,
+      },
+      data: {
+        title: step.title,
+        detail: step.detail,
+        state,
+      },
+    };
+  });
+}
+
+function createFlowDemoEdges(
+  example: FlowDemoExample,
+  runIndex: number,
+  runState: "idle" | "running" | "done",
+): Edge[] {
+  return example.steps.slice(0, -1).map((step, index) => {
+    const isActive = runState === "done" || index < runIndex;
+    const stroke =
+      runState === "done" && example.outcome === "warning" && index === example.steps.length - 2
+        ? "#fbbf24"
+        : isActive
+          ? "#67e8f9"
+          : "rgba(148, 163, 184, 0.35)";
+
+    return {
+      id: `${step.id}-${example.steps[index + 1]?.id}`,
+      source: step.id,
+      target: example.steps[index + 1]?.id ?? step.id,
+      type: "smoothstep",
+      animated: isActive,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+        color: stroke,
+      },
+      style: {
+        stroke,
+        strokeWidth: isActive ? 2.4 : 1.5,
+      },
+    };
+  });
+}
+
+function MoreUsagePanel({ feature }: { feature: FeatureAnalysis }) {
+  return (
+    <details className="group rounded-[24px] border border-white/8 bg-white/4 p-5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-base font-medium text-white">
+          <MoreHorizontal className="size-4 text-cyan-200" />
+          More
         </div>
-      ) : null}
-    </>
+        <span className="text-sm text-slate-400 transition-transform group-open:rotate-45">+</span>
+      </summary>
+      <div className="mt-5 grid gap-4">
+        <ConditionCard
+          title="什么时候使用"
+          items={feature.trigger_conditions}
+          emptyLabel="适合用于结构化处理与明确输出的任务。"
+          tone="positive"
+        />
+        <ConditionCard
+          title="什么时候不使用"
+          items={feature.non_trigger_conditions}
+          emptyLabel="没有明显的非触发条件。"
+          tone="neutral"
+        />
+        <InfoStrip
+          title="使用假设"
+          items={
+            feature.assumptions.length === 0 ? ["当前没有额外假设。"] : feature.assumptions
+          }
+        />
+      </div>
+    </details>
   );
 }
 
@@ -1200,38 +1347,18 @@ function SummaryBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HighlightPanel({
-  icon,
-  title,
-  items,
-  emptyLabel,
-  tone,
-}: {
-  icon: ReactNode;
-  title: string;
-  items: string[];
-  emptyLabel: string;
-  tone: "cyan" | "violet";
-}) {
-  const toneClass =
-    tone === "cyan"
-      ? "border-cyan-300/14 bg-cyan-400/8"
-      : "border-violet-300/14 bg-violet-400/8";
-
+function InfoStrip({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className={cn("rounded-[24px] border p-5", toneClass)}>
-      <div className="flex items-center gap-2 text-sm font-medium text-white">
-        {icon}
-        {title}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {(items.length === 0 ? [emptyLabel] : items).map((item) => (
-          <span
+    <div className="rounded-[24px] border border-white/8 bg-slate-950/45 p-4">
+      <div className="text-sm font-medium text-white">{title}</div>
+      <div className="mt-3 grid gap-2">
+        {items.map((item) => (
+          <div
             key={item}
-            className="rounded-full border border-white/8 bg-slate-950/35 px-3 py-1.5 text-sm text-slate-200"
+            className="rounded-2xl border border-white/8 bg-white/4 px-3 py-2 text-sm leading-6 text-slate-300"
           >
             {item}
-          </span>
+          </div>
         ))}
       </div>
     </div>

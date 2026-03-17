@@ -24,6 +24,7 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "^11.7.2",
+    "@xyflow/react": "^12.10.1",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "libsql": "catalog:",
