@@ -29,6 +29,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import {
+  ChevronRight,
   Expand,
   FolderSearch,
   LoaderCircle,
@@ -345,17 +346,17 @@ export default function SkillIntakeWorkbench() {
 
   return (
     <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-transparent">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
-        <section className="px-5 py-2 text-slate-950 md:px-6">
-          <div className="grid max-w-4xl gap-3">
-            <div className="grid gap-1">
-              <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-balance md:text-5xl">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-5 md:px-6 lg:px-8 lg:py-6">
+        <section className="px-5 py-0.5 text-slate-950 md:px-6">
+          <div className="grid max-w-4xl gap-2">
+            <div className="grid gap-0.5">
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.055em] text-balance md:text-[4.4rem] md:leading-[0.98]">
                 <span className="text-slate-950">Skill</span>
                 <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-violet-500 bg-clip-text text-transparent">
                   Peek
                 </span>
               </h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600 md:text-[15px]">
+              <p className="max-w-2xl text-sm leading-6 text-slate-500 md:text-[15px]">
                 了解 Skill 功能边界，评估 Skill 安全风险。
               </p>
             </div>
@@ -524,36 +525,38 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
   const examples = buildFlowExamples(feature);
 
   return (
-    <section className="grid gap-5 rounded-[32px] border border-slate-200/80 bg-white/92 px-5 py-5 text-slate-900 shadow-[0_18px_50px_rgba(148,163,184,0.16)] md:px-6 md:py-5">
-      <div className="grid gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="grid gap-2">
-            <h2 className="text-2xl font-semibold tracking-[-0.04em] md:text-3xl">
+    <section className="grid gap-4 rounded-[30px] border border-slate-200/75 bg-white/94 px-5 py-4 text-slate-900 shadow-[0_18px_50px_rgba(148,163,184,0.14)] md:px-6 md:py-4">
+      <div className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-1.5">
+            <h2 className="text-[2rem] font-semibold tracking-[-0.045em] md:text-[2.4rem] md:leading-none">
               {result.skill_name}
             </h2>
-            <p className="text-sm text-slate-600">{intro}</p>
+            <p className="max-w-3xl text-[15px] leading-6 text-slate-600">{intro}</p>
           </div>
           <button
             type="button"
             className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors",
+              "group inline-flex items-center gap-2 rounded-full border pl-3.5 pr-2 py-1.5 text-sm font-medium transition-colors",
               safety.risk_level === "unsafe"
-                ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                ? "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100"
                 : safety.risk_level === "caution"
-                  ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+                  ? "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100",
             )}
+            aria-label={`查看${riskLevelLabels[safety.risk_level]}详情`}
             onClick={() => {
               setShowSafetyModal(true);
             }}
           >
             <Shield className="size-3.5" />
-            {riskLevelLabels[safety.risk_level]}
+            <span className="text-sm font-semibold">{riskLevelLabels[safety.risk_level]}</span>
+            <ChevronRight className="size-4 opacity-55 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-80" />
           </button>
         </div>
       </div>
 
-      <div className="grid gap-4 border-t border-slate-200/80 pt-4">
+      <div className="grid gap-3 border-t border-slate-200/75 pt-4">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
           <Workflow className="size-4 text-sky-600" />
           流程示例
@@ -586,7 +589,7 @@ const flowEdgeTypes = {
 
 function StepFlowNode({ data }: NodeProps<ExampleFlowNode>) {
   return (
-    <div className="relative rounded-[12px] border border-slate-200 bg-white px-2.5 py-1.5 text-center text-[11px] font-semibold text-slate-700 shadow-[0_8px_24px_rgba(148,163,184,0.16)]">
+    <div className="relative rounded-[12px] border border-slate-200/90 bg-white px-2.5 py-1.5 text-center text-[11px] font-semibold text-slate-700 shadow-[0_10px_24px_rgba(148,163,184,0.18)]">
       <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-400" />
       <Handle type="source" position={Position.Right} className="!size-2 !border-2 !border-white !bg-slate-400" />
       <span className="leading-4">{data.label}</span>
@@ -619,7 +622,7 @@ function DecisionFlowNode({ data }: NodeProps<ExampleFlowNode>) {
         className="!size-2 !border-2 !border-white !bg-slate-400"
         style={{ top: "82%" }}
       />
-      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(148,163,184,0.16)]" />
+      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-slate-200/90 bg-white shadow-[0_10px_24px_rgba(148,163,184,0.18)]" />
       <div className="absolute inset-0 grid place-items-center px-3 text-center text-[11px] font-semibold leading-4 text-slate-700">
         {data.label}
       </div>
@@ -700,17 +703,17 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
   const { nodes, edges } = createExampleFlow(activeExample);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[176px_1fr]">
-      <div className="grid gap-3 self-start">
+    <div className="grid gap-4 lg:grid-cols-[168px_1fr]">
+      <div className="grid gap-2 self-start">
         {examples.map((example) => (
           <button
             key={example.id}
             type="button"
             className={cn(
-              "group relative overflow-hidden rounded-2xl border px-4 py-3 text-left transition-all",
+              "group relative overflow-hidden rounded-2xl border px-4 py-3.5 text-left transition-all duration-200",
               example.id === activeExample.id
-                ? "border-sky-200 bg-sky-50 text-slate-950 shadow-[0_12px_28px_rgba(14,165,233,0.12)]"
-                : "border-transparent bg-slate-50/85 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900",
+                ? "border-sky-200 bg-sky-50/95 text-slate-950 shadow-[0_10px_24px_rgba(14,165,233,0.12)]"
+                : "border-transparent bg-slate-50/90 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900",
             )}
             onClick={() => {
               setActiveId(example.id);
@@ -727,15 +730,15 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
         ))}
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-1">
-            <div className="text-base font-medium text-slate-900">{activeExample.title}</div>
-            <div className="text-sm text-slate-600">{activeExample.description}</div>
+            <div className="text-base font-semibold text-slate-900">{activeExample.title}</div>
+            <div className="text-sm leading-6 text-slate-600">{activeExample.description}</div>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[26px] bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(248,250,252,0.92))] shadow-[inset_0_0_0_1px_rgba(226,232,240,0.9)]">
+        <div className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_50%_42%,rgba(224,242,254,0.72),transparent_54%),linear-gradient(180deg,rgba(255,255,255,0.68),rgba(248,250,252,0.94))] shadow-[inset_0_0_0_1px_rgba(226,232,240,0.65)]">
           <button
             type="button"
             aria-label="全屏查看流程图"
@@ -746,14 +749,17 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
           >
             <Expand className="size-4" />
           </button>
-          <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-72" />
+          <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-[22rem]" />
         </div>
 
-        <div className="grid gap-3 border-t border-slate-200/80 pt-4">
-          <div className="text-xs tracking-[0.16em] text-slate-500">输出结果</div>
-          <div className="grid gap-3 rounded-[22px] bg-slate-50/90 px-4 py-4 ring-1 ring-inset ring-slate-200/90">
-            <div className="text-sm font-medium text-slate-800">{activeExample.output}</div>
-            <pre className="overflow-x-auto text-xs leading-6 text-slate-700">
+        <div className="grid gap-2 border-t border-slate-200/75 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs tracking-[0.16em] text-slate-500">输出结果</div>
+            <div className="text-xs font-medium text-slate-400">Result</div>
+          </div>
+          <div className="grid gap-2 rounded-[20px] bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.9))] px-4 py-4 ring-1 ring-inset ring-slate-200/85">
+            <div className="text-sm font-semibold text-slate-800">{activeExample.output}</div>
+            <pre className="overflow-x-auto text-[12px] leading-6 text-slate-700">
               <code>{activeExample.preview}</code>
             </pre>
           </div>
@@ -826,8 +832,8 @@ function FlowCanvas({
         <Background
           variant={BackgroundVariant.Dots}
           gap={16}
-          size={1.2}
-          color="rgba(100, 116, 139, 0.34)"
+          size={1.35}
+          color="rgba(100, 116, 139, 0.38)"
         />
         {interactive ? (
           <Controls
