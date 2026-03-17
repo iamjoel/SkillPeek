@@ -344,15 +344,15 @@ export default function SkillIntakeWorkbench() {
   const showResultPanel = analyzeSkill.isPending || Boolean(result);
 
   return (
-    <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.22),_transparent_34%),radial-gradient(circle_at_78%_12%,_rgba(249,115,22,0.16),_transparent_24%),linear-gradient(180deg,_rgba(2,6,23,0.98),_rgba(2,8,23,1))]">
+    <main className="min-h-[calc(100svh-49px)] overflow-y-auto bg-transparent">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-6 lg:px-8 lg:py-10">
-        <section className="rounded-[28px] border border-white/10 bg-white/6 p-6 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_28px_120px_rgba(15,23,42,0.55)] backdrop-blur-xl md:p-8">
+        <section className="rounded-[28px] border border-slate-200/80 bg-white/88 p-6 text-slate-950 shadow-[0_18px_60px_rgba(148,163,184,0.18)] backdrop-blur-xl md:p-8">
           <div className="grid max-w-4xl gap-5">
             <div className="grid gap-4">
               <h1 className="max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-balance md:text-6xl">
                 SkillPeek
               </h1>
-              <p className="max-w-2xl text-sm leading-7 text-slate-300 md:text-base">
+              <p className="max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
                 了解 Skill 功能边界，评估 Skill 安全风险。
               </p>
             </div>
@@ -362,16 +362,16 @@ export default function SkillIntakeWorkbench() {
         <section className="grid gap-6">
           {!showResultPanel ? (
             <div className="w-full">
-              <Card className="border border-white/10 bg-slate-950/88 text-slate-100 shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+              <Card className="border border-slate-200/80 bg-white/88 text-slate-900 shadow-[0_18px_60px_rgba(148,163,184,0.16)]">
                 <CardContent className="grid gap-6 p-6">
-                  <div className="inline-flex w-fit border border-white/10 bg-black/20 p-1">
+                  <div className="inline-flex w-fit rounded-2xl border border-slate-200 bg-slate-50 p-1">
                     <button
                       type="button"
                       className={cn(
                         "px-4 py-2 text-sm transition-colors",
                         inputTab === "upload"
-                          ? "bg-sky-500 text-slate-950"
-                          : "text-slate-300 hover:bg-white/6 hover:text-white",
+                          ? "rounded-xl bg-sky-500 text-white"
+                          : "rounded-xl text-slate-600 hover:bg-white hover:text-slate-900",
                       )}
                       onClick={() => setInputTab("upload")}
                     >
@@ -382,8 +382,8 @@ export default function SkillIntakeWorkbench() {
                       className={cn(
                         "px-4 py-2 text-sm transition-colors",
                         inputTab === "repo"
-                          ? "bg-orange-400 text-slate-950"
-                          : "text-slate-300 hover:bg-white/6 hover:text-white",
+                          ? "rounded-xl bg-amber-500 text-white"
+                          : "rounded-xl text-slate-600 hover:bg-white hover:text-slate-900",
                       )}
                       onClick={() => setInputTab("repo")}
                     >
@@ -396,8 +396,8 @@ export default function SkillIntakeWorkbench() {
                       className={cn(
                         "grid min-h-72 place-items-center border border-dashed p-6 text-center transition-colors",
                         isDragging
-                          ? "border-sky-300 bg-sky-400/12"
-                          : "border-sky-400/30 bg-sky-500/6",
+                          ? "border-sky-400 bg-sky-50"
+                          : "border-sky-300/80 bg-sky-50/70",
                       )}
                       onDragEnter={(event) => {
                         event.preventDefault();
@@ -418,11 +418,11 @@ export default function SkillIntakeWorkbench() {
                       }}
                     >
                       <div className="grid gap-5">
-                        <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10">
-                          <Upload className="size-6 text-sky-300" />
+                        <div className="mx-auto inline-flex size-14 items-center justify-center rounded-full border border-sky-200 bg-sky-100">
+                          <Upload className="size-6 text-sky-600" />
                         </div>
                         <div className="grid gap-2">
-                          <p className="text-2xl font-medium tracking-[-0.03em] text-white">
+                          <p className="text-2xl font-medium tracking-[-0.03em] text-slate-900">
                             把要分析的 Skill 拖到这里
                           </p>
                         </div>
@@ -430,7 +430,7 @@ export default function SkillIntakeWorkbench() {
                           <Button
                             type="button"
                             size="lg"
-                            className="bg-sky-500 text-slate-950 hover:bg-sky-400"
+                            className="bg-sky-500 text-white hover:bg-sky-600"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isReadingFiles || analyzeSkill.isPending}
                           >
@@ -455,19 +455,19 @@ export default function SkillIntakeWorkbench() {
                       />
                     </div>
                   ) : (
-                    <div className="grid gap-4 border border-white/8 bg-white/3 p-5">
+                    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
                       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                         <Input
                           id="repo-url"
                           value={repoUrl}
                           onChange={(event) => setRepoUrl(event.target.value)}
                           placeholder="https://github.com/owner/repo"
-                          className="h-11 border-white/10 bg-white/4 text-sm text-slate-50 placeholder:text-slate-500"
+                          className="h-11 border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400"
                         />
                         <Button
                           type="button"
                           size="lg"
-                          className="h-11 bg-orange-500 px-6 text-slate-950 hover:bg-orange-400"
+                          className="h-11 bg-amber-500 px-6 text-white hover:bg-amber-600"
                           onClick={() => void submitRepo()}
                           disabled={analyzeSkill.isPending || !repoUrl.trim()}
                         >
@@ -487,14 +487,14 @@ export default function SkillIntakeWorkbench() {
           ) : null}
 
           {showResultPanel ? (
-            <div className="mx-auto grid w-full max-w-5xl gap-6">
+            <div className="mx-auto grid w-full max-w-7xl gap-6">
               {!result ? (
-                <div className="grid min-h-72 place-items-center rounded-[28px] border border-white/8 bg-slate-950/70 p-8 text-center">
+                <div className="grid min-h-72 place-items-center rounded-[28px] border border-slate-200 bg-white/88 p-8 text-center shadow-[0_18px_60px_rgba(148,163,184,0.14)]">
                   <div className="grid gap-3">
-                    <div className="mx-auto inline-flex size-12 items-center justify-center rounded-full bg-sky-400/10 text-sky-200">
+                    <div className="mx-auto inline-flex size-12 items-center justify-center rounded-full bg-sky-100 text-sky-600">
                       <Workflow className="size-5" />
                     </div>
-                    <div className="text-lg font-medium text-white">正在分析</div>
+                    <div className="text-lg font-medium text-slate-900">正在分析</div>
                   </div>
                 </div>
               ) : (
@@ -521,24 +521,24 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
   const examples = buildFlowExamples(feature);
 
   return (
-    <div className="grid gap-5 text-white">
-      <section className="grid gap-4 rounded-[28px] bg-slate-950/78 px-5 py-5 md:px-6">
+    <div className="grid gap-5 text-slate-900">
+      <section className="grid gap-4 rounded-[28px] border border-slate-200/80 bg-white/92 px-5 py-5 shadow-[0_18px_50px_rgba(148,163,184,0.16)] md:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-2">
             <h2 className="text-2xl font-semibold tracking-[-0.04em] md:text-3xl">
               {result.skill_name}
             </h2>
-            <p className="text-sm text-slate-300">{intro}</p>
+            <p className="text-sm text-slate-600">{intro}</p>
           </div>
           <button
             type="button"
             className={cn(
               "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors",
               safety.risk_level === "unsafe"
-                ? "border-rose-300/25 bg-rose-400/10 text-rose-100 hover:bg-rose-400/16"
+                ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
                 : safety.risk_level === "caution"
-                  ? "border-amber-300/25 bg-amber-400/10 text-amber-100 hover:bg-amber-400/16"
-                  : "border-emerald-300/25 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/16",
+                  ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
             )}
             onClick={() => {
               setShowSafetyModal(true);
@@ -551,8 +551,8 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
       </section>
 
       <section className="grid gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
-          <Workflow className="size-4 text-cyan-300" />
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+          <Workflow className="size-4 text-sky-600" />
           流程示例
         </div>
         <FlowExamplesSection examples={examples} />
@@ -583,9 +583,9 @@ const flowEdgeTypes = {
 
 function StepFlowNode({ data }: NodeProps<ExampleFlowNode>) {
   return (
-    <div className="relative rounded-[12px] border border-white/10 bg-slate-950/90 px-2 py-1.5 text-center text-[10px] font-medium text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-950" />
-      <Handle type="source" position={Position.Right} className="!size-2 !border-2 !border-white !bg-slate-950" />
+    <div className="relative rounded-[12px] border border-slate-200 bg-white px-2 py-1.5 text-center text-[10px] font-medium text-slate-700 shadow-[0_6px_18px_rgba(148,163,184,0.12)]">
+      <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-400" />
+      <Handle type="source" position={Position.Right} className="!size-2 !border-2 !border-white !bg-slate-400" />
       <span className="leading-4">{data.label}</span>
     </div>
   );
@@ -594,30 +594,30 @@ function StepFlowNode({ data }: NodeProps<ExampleFlowNode>) {
 function DecisionFlowNode({ data }: NodeProps<ExampleFlowNode>) {
   return (
     <div className="relative size-[72px]">
-      <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-950" />
+      <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-400" />
       <Handle
         id="branch-top"
         type="source"
         position={Position.Right}
-        className="!size-2 !border-2 !border-white !bg-slate-950"
+        className="!size-2 !border-2 !border-white !bg-slate-400"
         style={{ top: "18%" }}
       />
       <Handle
         id="branch-mid"
         type="source"
         position={Position.Right}
-        className="!size-2 !border-2 !border-white !bg-slate-950"
+        className="!size-2 !border-2 !border-white !bg-slate-400"
         style={{ top: "50%" }}
       />
       <Handle
         id="branch-bottom"
         type="source"
         position={Position.Right}
-        className="!size-2 !border-2 !border-white !bg-slate-950"
+        className="!size-2 !border-2 !border-white !bg-slate-400"
         style={{ top: "82%" }}
       />
-      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-white/12 bg-slate-950/94 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]" />
-      <div className="absolute inset-0 grid place-items-center px-3 text-center text-[10px] font-medium leading-4 text-slate-100">
+      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-slate-200 bg-white shadow-[0_6px_18px_rgba(148,163,184,0.12)]" />
+      <div className="absolute inset-0 grid place-items-center px-3 text-center text-[10px] font-medium leading-4 text-slate-700">
         {data.label}
       </div>
     </div>
@@ -671,7 +671,7 @@ function AnnotatedFlowEdge({
       {label ? (
         <EdgeLabelRenderer>
           <div
-            className="pointer-events-none absolute rounded-full border border-white/10 bg-slate-950/94 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-100 shadow-[0_4px_18px_rgba(2,6,23,0.35)]"
+            className="pointer-events-none absolute rounded-full border border-slate-200 bg-white/96 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-700 shadow-[0_6px_18px_rgba(148,163,184,0.18)]"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX + (data?.labelOffsetX ?? 0)}px, ${
                 labelY + (data?.labelOffsetY ?? 0)
@@ -698,7 +698,7 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
   const { nodes, edges } = createExampleFlow(activeExample);
 
   return (
-    <div className="grid gap-4 rounded-[28px] bg-slate-950/72 p-4 lg:grid-cols-[168px_1fr]">
+    <div className="grid gap-4 rounded-[28px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_18px_50px_rgba(148,163,184,0.14)] lg:grid-cols-[168px_1fr]">
       <div className="grid gap-1.5 self-start">
         {examples.map((example) => (
           <button
@@ -707,8 +707,8 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
             className={cn(
               "rounded-xl px-3 py-2.5 text-left transition-colors",
               example.id === activeExample.id
-                ? "bg-white/10 text-white"
-                : "bg-white/4 text-slate-300 hover:bg-white/8 hover:text-white",
+                ? "bg-slate-900 text-white"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900",
             )}
             onClick={() => {
               setActiveId(example.id);
@@ -722,16 +722,16 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
       <div className="grid gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid gap-1">
-            <div className="text-base font-medium text-white">{activeExample.title}</div>
-            <div className="text-sm text-slate-300">{activeExample.description}</div>
+            <div className="text-base font-medium text-slate-900">{activeExample.title}</div>
+            <div className="text-sm text-slate-600">{activeExample.description}</div>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[20px] bg-white/4">
+        <div className="relative overflow-hidden rounded-[20px] border border-slate-200 bg-slate-50/80">
           <button
             type="button"
             aria-label="全屏查看流程图"
-            className="absolute right-3 top-3 z-10 inline-flex size-9 items-center justify-center rounded-full border border-white/10 bg-slate-950/80 text-slate-300 transition-colors hover:bg-slate-900 hover:text-white"
+            className="absolute right-3 top-3 z-10 inline-flex size-9 items-center justify-center rounded-full border border-slate-200 bg-white/92 text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
             onClick={() => {
               setShowFullscreen(true);
             }}
@@ -741,10 +741,10 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
           <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-52" />
         </div>
 
-        <div className="grid gap-2 rounded-[20px] bg-white/4 px-4 py-4">
+        <div className="grid gap-2 rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-4">
           <div className="text-xs tracking-[0.16em] text-slate-500">输出示例</div>
-          <div className="text-sm text-slate-200">{activeExample.output}</div>
-          <pre className="overflow-x-auto rounded-2xl bg-slate-950/80 px-4 py-3 text-xs leading-6 text-cyan-100">
+          <div className="text-sm text-slate-700">{activeExample.output}</div>
+          <pre className="overflow-x-auto rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs leading-6 text-slate-700">
             <code>{activeExample.preview}</code>
           </pre>
         </div>
@@ -752,13 +752,13 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
 
       {showFullscreen ? (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/84 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-white/72 p-4 backdrop-blur-sm"
           onClick={() => {
             setShowFullscreen(false);
           }}
         >
           <div
-            className="relative h-full w-full overflow-hidden rounded-[28px] bg-slate-950 text-white shadow-[0_24px_80px_rgba(2,6,23,0.45)]"
+            className="relative h-full w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white text-slate-900 shadow-[0_24px_80px_rgba(148,163,184,0.24)]"
             onClick={(event) => {
               event.stopPropagation();
             }}
@@ -766,7 +766,7 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
             <button
               type="button"
               aria-label="关闭全屏"
-              className="absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/82 text-slate-300 transition-colors hover:bg-slate-900 hover:text-white"
+              className="absolute right-4 top-4 z-10 inline-flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white/92 text-slate-500 transition-colors hover:bg-white hover:text-slate-900"
               onClick={() => {
                 setShowFullscreen(false);
               }}
@@ -817,13 +817,13 @@ function FlowCanvas({
           variant={BackgroundVariant.Dots}
           gap={16}
           size={1}
-          color="rgba(148, 163, 184, 0.2)"
+          color="rgba(148, 163, 184, 0.3)"
         />
         {interactive ? (
           <Controls
             position="bottom-left"
             showInteractive={false}
-            className="!rounded-2xl !border !border-white/10 !bg-slate-950/86 !shadow-[0_12px_30px_rgba(2,6,23,0.35)]"
+            className="!rounded-2xl !border !border-slate-200 !bg-white/96 !shadow-[0_12px_30px_rgba(148,163,184,0.2)]"
           />
         ) : null}
       </ReactFlow>
@@ -856,35 +856,35 @@ function SafetyModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/72 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-white/70 px-4 py-6 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="mx-auto grid max-w-lg gap-4 rounded-[28px] bg-slate-950 px-5 py-5 text-white shadow-[0_24px_80px_rgba(2,6,23,0.45)]"
+        className="mx-auto grid max-w-lg gap-4 rounded-[28px] border border-slate-200 bg-white px-5 py-5 text-slate-900 shadow-[0_24px_80px_rgba(148,163,184,0.2)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="grid gap-1">
-            <div className="text-sm font-medium text-slate-100">安全摘要</div>
-            <div className="text-sm text-slate-300">{summary}</div>
+            <div className="text-sm font-medium text-slate-900">安全摘要</div>
+            <div className="text-sm text-slate-600">{summary}</div>
           </div>
           <button
             type="button"
-            className="rounded-full bg-white/6 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
             onClick={onClose}
           >
             关闭
           </button>
         </div>
 
-        <div className="rounded-2xl bg-white/4 px-4 py-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="text-[11px] tracking-[0.18em] text-slate-500">安全等级</div>
-          <div className="mt-2 text-sm font-medium text-white">{level}</div>
+          <div className="mt-2 text-sm font-medium text-slate-900">{level}</div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {points.map((point) => (
             <span
               key={point}
-              className="rounded-full border border-white/8 bg-white/4 px-3 py-1.5 text-sm text-slate-200"
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700"
             >
               {point}
             </span>
@@ -991,25 +991,25 @@ function createExampleFlow(example: FlowExample): {
       ...(node.style ?? {}),
       border:
         currentNodeId === node.id
-          ? "1px solid rgba(103,232,249,0.7)"
+          ? "1px solid rgba(14,165,233,0.75)"
           : resultNodeId === node.id
             ? example.tone === "warning"
-              ? "1px solid rgba(251,191,36,0.7)"
-              : "1px solid rgba(167,139,250,0.7)"
+              ? "1px solid rgba(245,158,11,0.72)"
+              : "1px solid rgba(99,102,241,0.72)"
             : activeNodeIds.has(node.id)
-              ? "1px solid rgba(52,211,153,0.55)"
-              : "1px solid rgba(255,255,255,0.08)",
+              ? "1px solid rgba(16,185,129,0.62)"
+              : "1px solid rgba(203,213,225,0.95)",
       background:
         currentNodeId === node.id
-          ? "rgba(8,145,178,0.18)"
+          ? "rgba(224,242,254,0.98)"
           : resultNodeId === node.id
             ? example.tone === "warning"
-              ? "rgba(180,83,9,0.18)"
-              : "rgba(109,40,217,0.18)"
+              ? "rgba(255,247,237,0.98)"
+              : "rgba(238,242,255,0.98)"
             : activeNodeIds.has(node.id)
-              ? "rgba(5,150,105,0.12)"
-              : "rgba(15,23,42,0.92)",
-      color: "#e2e8f0",
+              ? "rgba(236,253,245,0.98)"
+              : "rgba(255,255,255,0.98)",
+      color: "#334155",
       textAlign: "center",
     },
   }));
@@ -1029,13 +1029,13 @@ function createExampleFlow(example: FlowExample): {
       animated: isActive,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: isActive ? "rgba(103,232,249,0.8)" : "rgba(148,163,184,0.35)",
+        color: isActive ? "rgba(14,165,233,0.82)" : "rgba(148,163,184,0.62)",
         width: 16,
         height: 16,
       },
       style: {
         ...(edge.style ?? {}),
-        stroke: isActive ? "rgba(103,232,249,0.8)" : "rgba(148,163,184,0.35)",
+        stroke: isActive ? "rgba(14,165,233,0.82)" : "rgba(148,163,184,0.62)",
         strokeWidth: isActive ? 2.2 : 1.4,
       },
     };
