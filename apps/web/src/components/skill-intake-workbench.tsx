@@ -13,10 +13,14 @@ import { useMutation } from "@tanstack/react-query";
 import {
   Background,
   BackgroundVariant,
+  Handle,
   MarkerType,
+  Position,
   ReactFlow,
   type Edge,
   type Node,
+  type NodeProps,
+  type NodeTypes,
 } from "@xyflow/react";
 import {
   FolderSearch,
@@ -47,16 +51,18 @@ type DataTransferItemWithEntry = DataTransferItem & {
 
 type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSkill.mutate>>;
 type FeatureAnalysis = SkillAnalysisResult["feature_analysis"];
+type ExampleFlowNodeData = { label: string };
 type FlowExample = {
   id: string;
   title: string;
   description: string;
   output: string;
-  steps: string[];
+  preview: string;
+  path: string[];
   resultLabel: string;
   tone?: "default" | "warning";
 };
-type ExampleFlowNode = Node<{ label: string }>;
+type ExampleFlowNode = Node<ExampleFlowNodeData, "step" | "decision">;
 
 const MOCK_SKILL_RESULT: SkillAnalysisResult = {
   status: "success",
@@ -556,10 +562,59 @@ function FeatureTab({ result }: { result: SkillAnalysisResult }) {
   );
 }
 
+const flowNodeTypes = {
+  step: StepFlowNode,
+  decision: DecisionFlowNode,
+} satisfies NodeTypes;
+
+function StepFlowNode({ data }: NodeProps<ExampleFlowNode>) {
+  return (
+    <div className="relative rounded-[12px] border border-white/10 bg-slate-950/90 px-2 py-1.5 text-center text-[10px] font-medium text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-950" />
+      <Handle type="source" position={Position.Right} className="!size-2 !border-2 !border-white !bg-slate-950" />
+      <span className="leading-4">{data.label}</span>
+    </div>
+  );
+}
+
+function DecisionFlowNode({ data }: NodeProps<ExampleFlowNode>) {
+  return (
+    <div className="relative size-[72px]">
+      <Handle type="target" position={Position.Left} className="!size-2 !border-2 !border-white !bg-slate-950" />
+      <Handle
+        id="branch-top"
+        type="source"
+        position={Position.Right}
+        className="!size-2 !border-2 !border-white !bg-slate-950"
+        style={{ top: "18%" }}
+      />
+      <Handle
+        id="branch-mid"
+        type="source"
+        position={Position.Right}
+        className="!size-2 !border-2 !border-white !bg-slate-950"
+        style={{ top: "50%" }}
+      />
+      <Handle
+        id="branch-bottom"
+        type="source"
+        position={Position.Right}
+        className="!size-2 !border-2 !border-white !bg-slate-950"
+        style={{ top: "82%" }}
+      />
+      <div className="absolute inset-2 rotate-45 rounded-[12px] border border-white/12 bg-slate-950/94 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]" />
+      <div className="absolute inset-0 grid place-items-center px-3 text-center text-[10px] font-medium leading-4 text-slate-100">
+        {data.label}
+      </div>
+    </div>
+  );
+}
+
 function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
   const [activeId, setActiveId] = useState(examples[0]?.id ?? "");
   const [runIndex, setRunIndex] = useState(-1);
   const [runState, setRunState] = useState<"idle" | "running" | "done">("idle");
+  const [showFullscreen, setShowFullscreen] = useState(false);
   const activeExample = examples.find((example) => example.id === activeId) ?? examples[0];
 
   useEffect(() => {
@@ -567,7 +622,7 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
       return;
     }
 
-    if (runIndex >= activeExample.steps.length) {
+    if (runIndex >= activeExample.path.length) {
       setRunState("done");
       return;
     }
@@ -587,17 +642,26 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
 
   const { nodes, edges } = createExampleFlow(activeExample, runIndex, runState);
   const currentStep =
-    runState === "running" && runIndex >= 0 ? activeExample.steps[runIndex] : undefined;
+    runState === "running" && runIndex >= 0
+      ? getSharedFlowNodeLabel(activeExample.path[runIndex])
+      : undefined;
+
+  const runLabel =
+    runState === "running"
+      ? `运行中：${currentStep ?? "处理中"}`
+      : runState === "done"
+        ? activeExample.resultLabel
+        : "待运行";
 
   return (
-    <div className="grid gap-4 rounded-[28px] bg-slate-950/72 p-4 lg:grid-cols-[220px_1fr]">
-      <div className="grid gap-2">
+    <div className="grid gap-4 rounded-[28px] bg-slate-950/72 p-4 lg:grid-cols-[168px_1fr]">
+      <div className="grid gap-1.5 self-start">
         {examples.map((example) => (
           <button
             key={example.id}
             type="button"
             className={cn(
-              "rounded-2xl px-4 py-3 text-left transition-colors",
+              "rounded-xl px-3 py-2.5 text-left transition-colors",
               example.id === activeExample.id
                 ? "bg-white/10 text-white"
                 : "bg-white/4 text-slate-300 hover:bg-white/8 hover:text-white",
@@ -619,58 +683,118 @@ function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
             <div className="text-base font-medium text-white">{activeExample.title}</div>
             <div className="text-sm text-slate-300">{activeExample.description}</div>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition-colors hover:bg-white/10 disabled:opacity-50"
-            disabled={runState === "running"}
-            onClick={() => {
-              setRunIndex(0);
-              setRunState("running");
-            }}
-          >
-            {runState === "done" ? <RotateCcw className="size-4" /> : <Play className="size-4" />}
-            {runState === "done" ? "重跑" : "运行"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+              onClick={() => {
+                setShowFullscreen(true);
+              }}
+            >
+              全屏
+            </button>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
+              {runLabel}
+            </span>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition-colors hover:bg-white/10 disabled:opacity-50"
+              disabled={runState === "running"}
+              onClick={() => {
+                setRunIndex(0);
+                setRunState("running");
+              }}
+            >
+              {runState === "done" ? <RotateCcw className="size-4" /> : <Play className="size-4" />}
+              {runState === "done" ? "重跑" : "运行"}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-[20px] bg-white/4">
-          <div className="h-44 w-full">
-          <ReactFlow<ExampleFlowNode, Edge>
-            nodes={nodes}
-            edges={edges}
-            fitView
-            fitViewOptions={{ padding: 0.18 }}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            panOnDrag={false}
-            zoomOnDoubleClick={false}
-            zoomOnScroll={false}
-            zoomOnPinch={false}
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={16}
-              size={1}
-              color="rgba(148, 163, 184, 0.2)"
-            />
-          </ReactFlow>
+          <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-52" />
+        </div>
+
+        <div className="grid gap-2 rounded-[20px] bg-white/4 px-4 py-4">
+          <div className="text-xs tracking-[0.16em] text-slate-500">输出示例</div>
+          <div className="text-sm text-slate-200">{activeExample.output}</div>
+          <pre className="overflow-x-auto rounded-2xl bg-slate-950/80 px-4 py-3 text-xs leading-6 text-cyan-100">
+            <code>{activeExample.preview}</code>
+          </pre>
         </div>
       </div>
 
-        <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-2xl bg-white/4 px-4 py-3 text-sm text-slate-300">
-            {runState === "idle"
-              ? "点击运行查看流程"
-              : runState === "running"
-                ? `当前：${currentStep}`
-                : activeExample.resultLabel}
-          </div>
-          <div className="rounded-2xl bg-white/4 px-4 py-3 text-sm text-slate-200">
-            输出：{activeExample.output}
+      {showFullscreen ? (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/84 px-4 py-6 backdrop-blur-sm"
+          onClick={() => {
+            setShowFullscreen(false);
+          }}
+        >
+          <div
+            className="mx-auto grid h-full max-w-6xl gap-4 rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_80px_rgba(2,6,23,0.45)] md:p-5"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="grid gap-1">
+                <div className="text-base font-medium text-white">{activeExample.title}</div>
+                <div className="text-sm text-slate-300">{activeExample.description}</div>
+              </div>
+              <button
+                type="button"
+                className="rounded-full bg-white/6 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  setShowFullscreen(false);
+                }}
+              >
+                关闭
+              </button>
+            </div>
+
+            <div className="overflow-hidden rounded-[24px] bg-white/4">
+              <FlowCanvas nodes={nodes} edges={edges} heightClassName="h-[72vh]" />
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FlowCanvas({
+  nodes,
+  edges,
+  heightClassName,
+}: {
+  nodes: ExampleFlowNode[];
+  edges: Edge[];
+  heightClassName: string;
+}) {
+  return (
+    <div className={cn("w-full", heightClassName)}>
+      <ReactFlow<ExampleFlowNode, Edge>
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={flowNodeTypes}
+        fitView
+        fitViewOptions={{ padding: 0.28 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        panOnDrag={false}
+        zoomOnDoubleClick={false}
+        zoomOnScroll={false}
+        zoomOnPinch={false}
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={16}
+          size={1}
+          color="rgba(148, 163, 184, 0.2)"
+        />
+      </ReactFlow>
     </div>
   );
 }
@@ -744,26 +868,36 @@ function buildFlowExamples(feature: FeatureAnalysis): FlowExample[] {
     {
       id: "direct-hit",
       title: "标准命中",
-      description: shortenText("输入完整时，直接生成结果。", 20),
-      output: shortenText(feature.outputs[0] ?? "Infographic DSL 代码块", 16),
-      steps: ["输入内容", "校验结构", "生成结果"],
+      description: shortenText("输入完整时，直接生成结果。", 28),
+      output: shortenText(feature.outputs[0] ?? "Infographic DSL 代码块", 24),
+      preview: `infographic compare
+items:
+  - title: "核心信息"
+  - title: "结构内容"`,
+      path: ["input", "check", "generate", "output"],
       resultLabel: "已生成结果",
     },
     {
       id: "missing-input",
       title: "信息不足",
-      description: shortenText("输入缺失时，返回提示。", 20),
-      output: shortenText(feature.failure_modes[0] ?? "补充信息提示", 16),
-      steps: ["输入内容", "检查缺失", "返回提示"],
+      description: shortenText("输入缺失时，返回补充提示。", 28),
+      output: shortenText(feature.failure_modes[0] ?? "补充信息提示", 24),
+      preview: `缺少必要输入：
+- 标题
+- 条目内容`,
+      path: ["input", "check", "missing", "output"],
       resultLabel: "已返回提示",
       tone: "warning",
     },
     {
       id: "structure-fallback",
       title: "结构问题",
-      description: shortenText("结构不匹配时，调整或说明。", 20),
-      output: shortenText(feature.outputs.at(-1) ?? "可用结果或说明", 16),
-      steps: ["输入内容", "检查结构", "调整输出"],
+      description: shortenText("结构不匹配时，调整后输出。", 28),
+      output: shortenText(feature.outputs.at(-1) ?? "可用结果或说明", 24),
+      preview: `已切换兜底结构：
+items:
+  - label: "保守输出"`,
+      path: ["input", "check", "fallback", "output"],
       resultLabel: "已调整输出",
     },
   ];
@@ -777,66 +911,197 @@ function createExampleFlow(
   nodes: ExampleFlowNode[];
   edges: Edge[];
 } {
-  const nodes: ExampleFlowNode[] = example.steps.map((step, index) => ({
-    id: `${example.id}-${index}`,
-    position: { x: index * 150, y: 24 },
-    data: { label: step },
+  const activeNodeIds = new Set(
+    runState === "idle"
+      ? []
+      : runState === "running"
+        ? example.path.slice(0, Math.max(runIndex, 0) + 1)
+        : example.path,
+  );
+  const currentNodeId =
+    runState === "running" && runIndex >= 0 ? example.path[Math.min(runIndex, example.path.length - 1)] : null;
+  const resultNodeId = runState === "done" ? example.path[example.path.length - 1] : null;
+
+  const nodes: ExampleFlowNode[] = getSharedFlowNodes().map((node) => ({
+    ...node,
     draggable: false,
     selectable: false,
     style: {
-      width: 108,
-      borderRadius: 16,
+      ...(node.style ?? {}),
       border:
-        runState === "running" && index === runIndex
+        currentNodeId === node.id
           ? "1px solid rgba(103,232,249,0.7)"
-          : runState === "done" && index === example.steps.length - 1
+          : resultNodeId === node.id
             ? example.tone === "warning"
               ? "1px solid rgba(251,191,36,0.7)"
               : "1px solid rgba(167,139,250,0.7)"
-            : runState !== "idle" && index < runIndex
+            : activeNodeIds.has(node.id)
               ? "1px solid rgba(52,211,153,0.55)"
               : "1px solid rgba(255,255,255,0.08)",
       background:
-        runState === "running" && index === runIndex
+        currentNodeId === node.id
           ? "rgba(8,145,178,0.18)"
-          : runState === "done" && index === example.steps.length - 1
+          : resultNodeId === node.id
             ? example.tone === "warning"
               ? "rgba(180,83,9,0.18)"
               : "rgba(109,40,217,0.18)"
-            : runState !== "idle" && index < runIndex
+            : activeNodeIds.has(node.id)
               ? "rgba(5,150,105,0.12)"
               : "rgba(15,23,42,0.92)",
       color: "#e2e8f0",
-      fontSize: 12,
-      padding: 10,
       textAlign: "center",
     },
   }));
 
-  const edges: Edge[] = example.steps.slice(0, -1).map((_, index) => ({
-    id: `${example.id}-edge-${index}`,
-    source: `${example.id}-${index}`,
-    target: `${example.id}-${index + 1}`,
-    type: "smoothstep",
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color:
-        runState !== "idle" && index < runIndex
-          ? "rgba(103,232,249,0.8)"
-          : "rgba(148,163,184,0.35)",
-      width: 16,
-      height: 16,
-    },
-    style: {
-      stroke:
-        runState !== "idle" && index < runIndex
-          ? "rgba(103,232,249,0.8)"
-          : "rgba(148,163,184,0.35)",
-      strokeWidth: runState !== "idle" && index < runIndex ? 2.2 : 1.4,
-    },
-  }));
+  const activeEdges = new Set(
+    (runState === "idle"
+      ? []
+      : runState === "running"
+        ? example.path.slice(0, Math.max(runIndex, 0) + 1)
+        : example.path
+    )
+      .slice(0, -1)
+      .map((nodeId, index, path) => `${nodeId}->${path[index + 1]}`),
+  );
+
+  const edges: Edge[] = getSharedFlowEdges().map((edge) => {
+    const edgeKey = `${edge.source}->${edge.target}`;
+    const isActive = activeEdges.has(edgeKey);
+
+    return {
+      ...edge,
+      animated: isActive,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: isActive ? "rgba(103,232,249,0.8)" : "rgba(148,163,184,0.35)",
+        width: 16,
+        height: 16,
+      },
+      style: {
+        ...(edge.style ?? {}),
+        stroke: isActive ? "rgba(103,232,249,0.8)" : "rgba(148,163,184,0.35)",
+        strokeWidth: isActive ? 2.2 : 1.4,
+      },
+    };
+  });
 
   return { nodes, edges };
+}
+
+function getSharedFlowNodeLabel(nodeId: string) {
+  return (
+    getSharedFlowNodes().find((node) => node.id === nodeId)?.data.label ?? "处理中"
+  );
+}
+
+function getSharedFlowNodes(): ExampleFlowNode[] {
+  return [
+    {
+      id: "input",
+      type: "step",
+      position: { x: 0, y: 84 },
+      data: { label: "输入内容" },
+    },
+    {
+      id: "check",
+      type: "decision",
+      position: { x: 112, y: 64 },
+      data: { label: "检查条件" },
+    },
+    {
+      id: "generate",
+      type: "step",
+      position: { x: 260, y: 8 },
+      data: { label: "生成结果" },
+    },
+    {
+      id: "missing",
+      type: "step",
+      position: { x: 260, y: 84 },
+      data: { label: "返回提示" },
+    },
+    {
+      id: "fallback",
+      type: "step",
+      position: { x: 260, y: 160 },
+      data: { label: "调整输出" },
+    },
+    {
+      id: "output",
+      type: "step",
+      position: { x: 398, y: 84 },
+      data: { label: "最终输出" },
+    },
+  ];
+}
+
+function getSharedFlowEdges(): Edge[] {
+  return [
+    { id: "input-check", source: "input", target: "check", type: "smoothstep" },
+    {
+      id: "check-generate",
+      source: "check",
+      sourceHandle: "branch-top",
+      target: "generate",
+      type: "smoothstep",
+      label: "通过",
+      labelStyle: {
+        fill: "rgba(226,232,240,0.92)",
+        fontSize: 10,
+        fontWeight: 500,
+      },
+      labelShowBg: true,
+      labelBgStyle: {
+        fill: "rgba(15,23,42,0.92)",
+        stroke: "rgba(255,255,255,0.08)",
+      },
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 999,
+    },
+    {
+      id: "check-missing",
+      source: "check",
+      sourceHandle: "branch-mid",
+      target: "missing",
+      type: "smoothstep",
+      label: "缺失",
+      labelStyle: {
+        fill: "rgba(226,232,240,0.92)",
+        fontSize: 10,
+        fontWeight: 500,
+      },
+      labelShowBg: true,
+      labelBgStyle: {
+        fill: "rgba(15,23,42,0.92)",
+        stroke: "rgba(255,255,255,0.08)",
+      },
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 999,
+    },
+    {
+      id: "check-fallback",
+      source: "check",
+      sourceHandle: "branch-bottom",
+      target: "fallback",
+      type: "smoothstep",
+      label: "异常",
+      labelStyle: {
+        fill: "rgba(226,232,240,0.92)",
+        fontSize: 10,
+        fontWeight: 500,
+      },
+      labelShowBg: true,
+      labelBgStyle: {
+        fill: "rgba(15,23,42,0.92)",
+        stroke: "rgba(255,255,255,0.08)",
+      },
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 999,
+    },
+    { id: "generate-output", source: "generate", target: "output", type: "smoothstep" },
+    { id: "missing-output", source: "missing", target: "output", type: "smoothstep" },
+    { id: "fallback-output", source: "fallback", target: "output", type: "smoothstep" },
+  ];
 }
 
 function shortenText(text: string, maxLength: number) {
