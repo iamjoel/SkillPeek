@@ -15,20 +15,16 @@ export type SkillAnalysisResult = Awaited<ReturnType<typeof trpcClient.analyzeSk
 
 export type ShowcaseRiskLevel = SkillAnalysisResult["safety_analysis"]["risk_level"];
 
-export type ShowcaseResult = {
-  skill_name: string;
-  feature_analysis: {
-    summary: string;
-    outputs: string[];
-    failure_modes: string[];
-  };
-  safety_analysis: {
-    risk_level: ShowcaseRiskLevel;
-    verdict: string;
-    findings: string[];
-    permission_scope: string[];
-    trust_signals: string[];
-  };
+export type ShowcaseFeatureAnalysis = Pick<
+  SkillAnalysisResult["feature_analysis"],
+  "summary" | "outputs" | "failure_modes"
+>;
+
+export type ShowcaseSafetyAnalysis = SkillAnalysisResult["safety_analysis"];
+
+export type ShowcaseResult = Pick<SkillAnalysisResult, "skill_name"> & {
+  feature_analysis: ShowcaseFeatureAnalysis;
+  safety_analysis: ShowcaseSafetyAnalysis;
 };
 
 export type FeatureAnalysis = ShowcaseResult["feature_analysis"];
