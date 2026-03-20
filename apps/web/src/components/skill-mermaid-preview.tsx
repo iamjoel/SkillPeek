@@ -55,7 +55,7 @@ export function MermaidPreview({ chart }: { chart: string }) {
 
   if (error) {
     return (
-      <div className="rounded-[22px] border border-dashed border-slate-200 bg-white/75 px-4 py-6 text-sm leading-6 text-slate-500">
+      <div className="rounded-[24px] border border-dashed border-[rgba(115,87,61,0.16)] bg-[rgba(255,252,248,0.82)] px-4 py-6 text-sm leading-6 text-[rgba(94,75,60,0.76)]">
         {error}
       </div>
     );
@@ -63,14 +63,14 @@ export function MermaidPreview({ chart }: { chart: string }) {
 
   if (!svg) {
     return (
-      <div className="rounded-[22px] border border-slate-200 bg-white/75 px-4 py-6 text-sm leading-6 text-slate-500">
+      <div className="rounded-[24px] border border-[rgba(115,87,61,0.14)] bg-[rgba(255,252,248,0.82)] px-4 py-6 text-sm leading-6 text-[rgba(94,75,60,0.76)]">
         正在生成审查流程图…
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-[22px] border border-slate-200 bg-slate-950 px-3 py-4 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)] md:px-4">
+    <div className="overflow-x-auto rounded-[24px] border border-[rgba(115,87,61,0.14)] bg-[linear-gradient(180deg,rgba(255,253,250,0.94),rgba(248,243,235,0.94))] px-3 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)] md:px-4">
       <div
         className="mermaid-preview"
         data-size="inline"

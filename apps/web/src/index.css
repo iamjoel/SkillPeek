@@ -1,5 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "@my-better-t-app/ui/globals.css";
+
+:root {
+  --font-editorial: "Fraunces", serif;
+}
 
 html,
 body {
@@ -44,6 +48,6 @@ pre {
 }
 
 .mermaid-preview :is(text, tspan, foreignObject, span) {
-  color: #e2e8f0;
-  fill: #e2e8f0;
+  color: rgba(245, 237, 227, 0.92);
+  fill: rgba(245, 237, 227, 0.92);
 }

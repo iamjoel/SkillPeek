@@ -67,14 +67,15 @@ function ResultHeader({
         <button
           type="button"
           className={cn(
-            "group inline-flex items-center gap-2 rounded-full border pl-3.5 pr-2 py-1.5 text-sm font-medium transition-colors",
+            "group inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors shadow-[0_10px_30px_rgba(148,163,184,0.08)]",
             getRiskTone(riskLevel),
           )}
-          aria-label={`查看${riskLevelLabels[riskLevel]}详情`}
+          aria-label={`查看${riskLevelLabels[riskLevel]}安全解读`}
           onClick={onOpenSafety}
         >
           <Shield className="size-3.5" />
           <span className="text-sm font-semibold">{riskLevelLabels[riskLevel]}</span>
+          <span className="hidden text-sm opacity-72 sm:inline">安全解读</span>
           <ChevronRight className="size-4 opacity-55 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-80" />
         </button>
       </div>
@@ -85,10 +86,10 @@ function ResultHeader({
 function getRiskTone(riskLevel: ShowcaseResult["safety_analysis"]["risk_level"]) {
   switch (riskLevel) {
     case "unsafe":
-      return "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100";
+      return "border-[rgba(162,89,79,0.22)] bg-[rgba(250,238,236,0.9)] text-[rgba(126,53,46,0.9)] hover:border-[rgba(162,89,79,0.3)] hover:bg-[rgba(247,231,227,0.95)]";
     case "caution":
-      return "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100";
+      return "border-[rgba(191,146,79,0.22)] bg-[rgba(251,244,229,0.92)] text-[rgba(139,94,31,0.9)] hover:border-[rgba(191,146,79,0.3)] hover:bg-[rgba(248,238,218,0.94)]";
     default:
-      return "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100";
+      return "border-[rgba(118,156,121,0.22)] bg-[rgba(244,249,240,0.9)] text-[rgba(71,101,73,0.9)] hover:border-[rgba(118,156,121,0.3)] hover:bg-[rgba(238,245,234,0.94)]";
   }
 }
