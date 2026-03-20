@@ -144,15 +144,15 @@ export function SafetyModal({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          "relative mx-auto flex max-h-[88vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-[28px] border text-slate-900 shadow-[0_36px_120px_rgba(61,39,26,0.22)] motion-safe:animate-in motion-safe:zoom-in-[0.98] motion-safe:slide-in-from-bottom-4 duration-300",
+          "relative mx-auto flex max-h-[88vh] w-full max-w-[1080px] flex-col overflow-hidden rounded-[28px] border text-slate-900 shadow-[0_36px_120px_rgba(61,39,26,0.22)] motion-safe:animate-in motion-safe:zoom-in-[0.98] motion-safe:slide-in-from-bottom-4 duration-300",
           tone.border,
           tone.surface,
         )}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="relative flex-1 overflow-y-auto">
-          <header className={cn("border-b px-5 pb-8 pt-5 md:px-8 md:pb-10 md:pt-6", tone.rule, tone.heroSurface)}>
-            <div className="grid gap-6">
+          <header className={cn("border-b px-5 pb-7 pt-5 md:px-8 md:pb-8 md:pt-6", tone.rule, tone.heroSurface)}>
+            <div className="grid gap-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-wrap items-center gap-2.5 text-[11px] tracking-[0.2em] text-[rgba(89,71,57,0.66)] uppercase">
                   <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-semibold", tone.badge)}>
@@ -188,7 +188,7 @@ export function SafetyModal({
                 <p className="max-w-[62ch] text-[16px] leading-8 text-[rgba(74,58,46,0.84)]">{summary}</p>
               </div>
 
-              <div className={cn("grid gap-3 border-l-2 pl-4 md:max-w-[58rem]", tone.rule)}>
+              <div className={cn("grid gap-2.5 border-l-2 pl-4 md:max-w-[40rem]", tone.rule)}>
                 <div className={cn("text-[11px] font-semibold tracking-[0.18em] uppercase", tone.accentMuted)}>
                   下一步
                 </div>
@@ -202,25 +202,21 @@ export function SafetyModal({
                   </div>
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-[rgba(74,58,46,0.74)]">
-                <MetaFact label="恶意迹象" value={safety.is_malicious_or_unsafe ? "已识别" : "未直接判定"} />
-                <MetaFact label="风险线索" value={formatCount(safety.red_flags.length + safety.findings.length, "条", "暂无")} />
-                <MetaFact label="能力边界" value={formatCount(safety.permission_scope.length + safety.blocked_capabilities.length, "项", "待补充")} />
-                <MetaFact label="可信依据" value={formatCount(safety.trust_signals.length + safety.metadata_review.length, "条", "偏少")} />
-              </div>
             </div>
           </header>
 
           <div className={cn("sticky top-0 z-10 border-b backdrop-blur-xl", tone.rule, "bg-[rgba(252,248,242,0.88)]")}>
-            <div className="flex flex-wrap items-center gap-2 px-5 py-3 md:px-8">
-              <div className="mr-2 text-[11px] font-semibold tracking-[0.18em] text-[rgba(89,71,57,0.58)] uppercase">
-                导航
+            <div className="flex items-center gap-3 px-4 py-2.5 md:px-8">
+              <span className={cn("inline-flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.16em] uppercase", tone.badge)}>
+                <span className={cn("size-1.5 rounded-full", tone.badgeDot)} />
+                {riskLevelLabels[safety.risk_level]}
+              </span>
+              <div className="-mx-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <SectionNavButton label="风险线索" onClick={() => jumpTo("evidence")} />
+                <SectionNavButton label="能力边界" onClick={() => jumpTo("boundary")} />
+                <SectionNavButton label="可信依据" onClick={() => jumpTo("trust")} />
+                <SectionNavButton label="附录" onClick={() => jumpTo("appendix")} />
               </div>
-              <SectionNavButton label="风险线索" onClick={() => jumpTo("evidence")} />
-              <SectionNavButton label="能力边界" onClick={() => jumpTo("boundary")} />
-              <SectionNavButton label="可信依据" onClick={() => jumpTo("trust")} />
-              <SectionNavButton label="附录" onClick={() => jumpTo("appendix")} />
             </div>
           </div>
 
@@ -233,6 +229,7 @@ export function SafetyModal({
                   lead={buildEvidenceLead(safety)}
                   accent={tone.textAccent}
                 >
+                  <FactsStrip safety={safety} />
                   <PrimaryEvidenceSection safety={safety} tone={tone} />
                 </ReportSection>
               </div>
@@ -290,7 +287,7 @@ function SectionNavButton({ label, onClick }: { label: string; onClick: () => vo
   return (
     <button
       type="button"
-      className="rounded-full border border-[rgba(101,80,63,0.12)] bg-[rgba(255,255,255,0.62)] px-3 py-1.5 text-xs font-medium text-[rgba(72,55,44,0.84)] transition-colors hover:border-[rgba(101,80,63,0.22)] hover:bg-[rgba(255,255,255,0.86)]"
+      className="whitespace-nowrap rounded-full border border-[rgba(101,80,63,0.1)] bg-[rgba(255,255,255,0.56)] px-2.5 py-1 text-[11px] font-medium text-[rgba(72,55,44,0.8)] transition-colors hover:border-[rgba(101,80,63,0.2)] hover:bg-[rgba(255,255,255,0.84)]"
       onClick={onClick}
     >
       {label}
@@ -312,20 +309,31 @@ function ReportSection({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-6 border-t border-[rgba(101,80,63,0.12)] pt-8 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-10 md:pt-10">
-      <div className="grid content-start gap-3">
-        <div className="text-[11px] font-semibold tracking-[0.2em] text-[rgba(89,71,57,0.56)] uppercase">{eyebrow}</div>
+    <section className="grid gap-6 border-t border-[rgba(101,80,63,0.12)] pt-8 md:grid-cols-[12rem_minmax(0,1fr)] md:gap-10 md:pt-10">
+      <div className="grid content-start gap-2">
+        <div className="hidden text-[11px] font-semibold tracking-[0.2em] text-[rgba(89,71,57,0.56)] uppercase md:block">{eyebrow}</div>
         <h3
           className={cn("text-[clamp(1.55rem,2vw,2.15rem)] leading-[0.96] tracking-[-0.045em]", accent)}
           style={{ fontFamily: "var(--font-editorial)" }}
         >
           {title}
         </h3>
-        <p className="max-w-[24ch] text-sm leading-6 text-[rgba(74,58,46,0.72)]">{lead}</p>
+        <p className="max-w-[26ch] text-sm leading-6 text-[rgba(74,58,46,0.72)] md:block hidden">{lead}</p>
       </div>
 
       <div className="grid gap-6">{children}</div>
     </section>
+  );
+}
+
+function FactsStrip({ safety }: { safety: ShowcaseSafetyAnalysis }) {
+  return (
+    <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-[rgba(101,80,63,0.1)] pb-4 text-sm text-[rgba(74,58,46,0.74)]">
+      <MetaFact label="恶意迹象" value={safety.is_malicious_or_unsafe ? "已识别" : "未直接判定"} />
+      <MetaFact label="风险线索" value={formatCount(safety.red_flags.length + safety.findings.length, "条", "暂无")} />
+      <MetaFact label="能力边界" value={formatCount(safety.permission_scope.length + safety.blocked_capabilities.length, "项", "待补充")} />
+      <MetaFact label="可信依据" value={formatCount(safety.trust_signals.length + safety.metadata_review.length, "条", "偏少")} />
+    </div>
   );
 }
 
@@ -454,7 +462,7 @@ function TrustSection({
         {safety.trust_signals.length > 0 ? (
           <ul className="grid gap-3">
             {safety.trust_signals.map((item) => (
-              <li key={item} className={cn("rounded-[18px] px-4 py-3 text-sm leading-6 text-[rgba(74,58,46,0.82)]", tone.accentSoft)}>
+              <li key={item} className="border-b border-[rgba(101,80,63,0.1)] pb-3 text-sm leading-6 text-[rgba(74,58,46,0.8)] last:border-b-0 last:pb-0">
                 {item}
               </li>
             ))}
@@ -522,8 +530,8 @@ function AppendixSection({
   tone: (typeof safetyToneStyles)[ShowcaseRiskLevel];
 }) {
   return (
-    <div className="grid gap-4">
-      <details className={cn("group rounded-[20px] border px-4 py-4 md:px-5", tone.rule, tone.appendixSurface)}>
+    <div className="grid gap-3">
+      <details className={cn("group rounded-[18px] border px-4 py-3.5 md:px-5", tone.rule, tone.appendixSurface)}>
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
           <div className="grid gap-1">
             <div className="text-base font-semibold tracking-[-0.03em] text-[rgb(41,31,24)]">审查附注</div>
@@ -534,7 +542,7 @@ function AppendixSection({
           <ArrowDownRight className="size-4 text-[rgba(72,55,44,0.72)] transition-transform duration-200 group-open:rotate-90" />
         </summary>
 
-        <div className="mt-4">
+        <div className="mt-3">
           {safety.notes.length > 0 ? (
             <ul className="grid gap-3">
               {safety.notes.map((item) => (
@@ -549,7 +557,7 @@ function AppendixSection({
         </div>
       </details>
 
-      <details className="group rounded-[20px] border border-[rgba(101,80,63,0.14)] bg-[rgba(28,24,22,0.96)] px-4 py-4 text-[rgba(245,237,227,0.92)] md:px-5">
+      <details className="group rounded-[18px] border border-[rgba(101,80,63,0.14)] bg-[rgba(31,27,25,0.96)] px-4 py-3.5 text-[rgba(245,237,227,0.92)] md:px-5">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
           <div className="grid gap-1">
             <div className="text-base font-semibold tracking-[-0.03em] text-[rgb(252,244,236)]">审查路径</div>
@@ -558,11 +566,17 @@ function AppendixSection({
           <ArrowDownRight className="size-4 text-[rgba(244,222,192,0.72)] transition-transform duration-200 group-open:rotate-90" />
         </summary>
 
-        <div className="mt-4 grid gap-4">
+        <div className="mt-3 grid gap-4">
           <p className="max-w-2xl text-sm leading-6 text-[rgba(226,214,199,0.72)]">
             这不是源码审计图，而是模型根据提交材料梳理出的判断路径。适合帮助用户理解结论是如何一步步形成的。
           </p>
-          {safety.mermaid ? <MermaidPreview chart={safety.mermaid} /> : <EmptyBlock text="当前没有可展示的审查路径。" tone={tone} dark />}
+          {safety.mermaid ? (
+            <div className="max-w-3xl">
+              <MermaidPreview chart={safety.mermaid} />
+            </div>
+          ) : (
+            <EmptyBlock text="当前没有可展示的审查路径。" tone={tone} dark />
+          )}
         </div>
       </details>
     </div>
