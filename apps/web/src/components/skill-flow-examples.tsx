@@ -1,6 +1,6 @@
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { Expand, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { FlowExample } from "@/components/types";
 
@@ -11,6 +11,10 @@ export function FlowExamplesSection({ examples }: { examples: FlowExample[] }) {
   const [activeId, setActiveId] = useState(examples[0]?.id ?? "");
   const [showFullscreen, setShowFullscreen] = useState(false);
   const activeExample = examples.find((example) => example.id === activeId) ?? examples[0];
+
+  useEffect(() => {
+    setActiveId(examples[0]?.id ?? "");
+  }, [examples]);
 
   if (!activeExample) {
     return null;

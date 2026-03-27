@@ -80,6 +80,25 @@ const featureAnalysisSchema = z.object({
     failure_paths: z.array(z.string()).max(8),
     outputs: z.array(z.string()).max(8),
   }),
+  ui_examples: z
+    .array(
+      z.object({
+        title: z.string(),
+        description: z.string(),
+        output: z.string(),
+        preview: z.string(),
+        steps: z
+          .array(
+            z.object({
+              label: z.string(),
+              kind: z.enum(["step", "decision"]).default("step"),
+            }),
+          )
+          .max(8),
+        tone: z.enum(["default", "warning"]).default("default"),
+      }),
+    )
+    .max(3),
   assumptions: z.array(z.string()).max(8),
 });
 
@@ -154,6 +173,14 @@ function truncateText(text: string, max = 80) {
   }
 
   return `${normalized.slice(0, max - 1).trim()}…`;
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
 }
 
 function parseFrontmatterName(text: string) {
@@ -269,6 +296,9 @@ function getFeaturePrompts(language: OutputLanguage, defaultSkillName: string, d
         "Use only evidence from the provided source. If information is missing, record the assumption in assumptions.",
         "Keep every list item short, concrete, and human-readable.",
         "Normalize the result into: trigger_conditions, non_trigger_conditions, inputs, prechecks, execution_steps, failure_modes, outputs, and flow_breakdown.",
+        "Also return ui_examples for the current UI: 2-3 scenario cards, each with title, description, output, preview, steps, and tone.",
+        "Each ui_examples.steps item must contain a short label and kind(step or decision). Keep 4-8 steps per scenario and make the path sequential.",
+        "Write preview as a compact multi-line plain text snippet that resembles the final output panel.",
         "Do not perform the safety review in this output.",
       ].join(" "),
       prompt: [
@@ -286,6 +316,10 @@ function getFeaturePrompts(language: OutputLanguage, defaultSkillName: string, d
       "只根据提供的材料输出，不要编造；如果信息缺失，把假设放到 assumptions。",
       "每个数组项保持简短、具体、可读。",
       "必须归一化到：trigger_conditions、non_trigger_conditions、inputs、prechecks、execution_steps、failure_modes、outputs、flow_breakdown。",
+      "还要补齐 ui_examples，供当前 UI 直接展示流程示例卡片。",
+      "ui_examples 生成 2 到 3 个场景；每个场景都要有 title、description、output、preview、steps、tone。",
+      "steps 保持 4 到 8 步，按顺序排列；每一步都要提供简短 label，以及 kind(step 或 decision)。",
+      "preview 写成 2 到 4 行的纯文本结果片段，像最终输出面板里会展示的内容。",
       "这里不要做安全结论，只做功能分析。",
     ].join(" "),
     prompt: [`默认 Skill 名称：${defaultSkillName}`, "输出语言：中文。", "源材料：", dossier].join(
@@ -453,6 +487,168 @@ function buildSafetyMermaid(safety: SafetyAnalysis, language: OutputLanguage) {
   ].join("\n");
 }
 
+function normalizePreview(preview: string) {
+  return preview
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line, index, lines) => line.length > 0 || (index > 0 && index < lines.length - 1))
+    .slice(0, 4)
+    .join("\n")
+    .trim();
+}
+
+function buildFeatureUiExamples(
+  feature: FeatureAnalysis,
+  language: OutputLanguage,
+) {
+  const providedExamples = feature.ui_examples
+    .map((example, index) => ({
+      id: slugify(example.title) || `scenario-${index + 1}`,
+      title: truncateText(example.title, 22),
+      description: truncateText(example.description, 42),
+      output: truncateText(example.output, 24),
+      preview: normalizePreview(example.preview),
+      steps: example.steps
+        .map((step) => ({
+          label: truncateText(step.label, 18),
+          kind: step.kind,
+        }))
+        .filter((step) => step.label)
+        .slice(0, 8),
+      tone: example.tone,
+    }))
+    .filter((example) => example.steps.length >= 3);
+
+  if (providedExamples.length > 0) {
+    return providedExamples.slice(0, 3);
+  }
+
+  const labels =
+    language === "en"
+      ? {
+          standard: "Standard path",
+          standardDescription: "Trigger, validate, execute, and return the normal result.",
+          standardOutput: "Return the main Skill result",
+          standardPreviewTitle: "Result",
+          missingInput: "Missing input",
+          missingDescription: "Stop early when required context is incomplete.",
+          missingOutput: "Return missing info checklist",
+          missingPreviewTitle: "Missing context",
+          caution: "Fallback branch",
+          cautionDescription: "Handle failed checks or execution with a bounded fallback.",
+          cautionOutput: "Return fallback or failure note",
+          cautionPreviewTitle: "Fallback",
+          supplyInput: "Supply inputs",
+          requestMore: "Request more context",
+          failCheck: "Precheck failed",
+        }
+      : {
+          standard: "标准路径",
+          standardDescription: "命中触发条件后，校验、执行并返回主结果。",
+          standardOutput: "返回主要 Skill 结果",
+          standardPreviewTitle: "当前结果",
+          missingInput: "缺少输入",
+          missingDescription: "必要上下文不足时，提前停止并补齐信息。",
+          missingOutput: "返回缺失信息清单",
+          missingPreviewTitle: "待补充",
+          caution: "兜底分支",
+          cautionDescription: "预检查或执行失败时，给出受控降级结果。",
+          cautionOutput: "返回失败说明或降级结果",
+          cautionPreviewTitle: "降级结果",
+          supplyInput: "补充输入",
+          requestMore: "请求补充信息",
+          failCheck: "预检查失败",
+        };
+
+  const standardSteps = [
+    ...(feature.flow_breakdown.trigger[0]
+      ? [{ label: feature.flow_breakdown.trigger[0], kind: "decision" as const }]
+      : []),
+    ...(feature.flow_breakdown.input_parsing[0]
+      ? [{ label: feature.flow_breakdown.input_parsing[0], kind: "step" as const }]
+      : []),
+    ...(feature.flow_breakdown.prechecks[0]
+      ? [{ label: feature.flow_breakdown.prechecks[0], kind: "decision" as const }]
+      : []),
+    ...(feature.flow_breakdown.execution.slice(0, 2).map((label) => ({
+      label,
+      kind: "step" as const,
+    })) ?? []),
+    ...(feature.flow_breakdown.outputs[0]
+      ? [{ label: feature.flow_breakdown.outputs[0], kind: "step" as const }]
+      : []),
+  ].slice(0, 6);
+
+  const fallbackExamples = [
+    {
+      id: "standard-path",
+      title: labels.standard,
+      description: labels.standardDescription,
+      output: labels.standardOutput,
+      preview: [labels.standardPreviewTitle, ...feature.outputs.slice(0, 3).map((item) => `- ${item}`)].join(
+        "\n",
+      ),
+      steps: standardSteps,
+      tone: "default" as const,
+    },
+    {
+      id: "missing-input",
+      title: labels.missingInput,
+      description: labels.missingDescription,
+      output: labels.missingOutput,
+      preview: [labels.missingPreviewTitle, ...feature.inputs.slice(0, 3).map((item) => `- ${item}`)].join(
+        "\n",
+      ),
+      steps: [
+        ...(feature.flow_breakdown.trigger[0]
+          ? [{ label: feature.flow_breakdown.trigger[0], kind: "decision" as const }]
+          : []),
+        ...(feature.flow_breakdown.input_parsing[0]
+          ? [{ label: feature.flow_breakdown.input_parsing[0], kind: "step" as const }]
+          : []),
+        { label: labels.supplyInput, kind: "decision" as const },
+        { label: labels.requestMore, kind: "step" as const },
+      ],
+      tone: "warning" as const,
+    },
+    {
+      id: "fallback-path",
+      title: labels.caution,
+      description: labels.cautionDescription,
+      output: labels.cautionOutput,
+      preview: [
+        labels.cautionPreviewTitle,
+        ...feature.failure_modes.slice(0, 2).map((item) => `- ${item}`),
+        ...feature.outputs.slice(0, 1).map((item) => `- ${item}`),
+      ].join("\n"),
+      steps: [
+        ...(feature.flow_breakdown.trigger[0]
+          ? [{ label: feature.flow_breakdown.trigger[0], kind: "decision" as const }]
+          : []),
+        ...(feature.flow_breakdown.prechecks[0]
+          ? [{ label: feature.flow_breakdown.prechecks[0], kind: "decision" as const }]
+          : []),
+        { label: labels.failCheck, kind: "decision" as const },
+        ...(feature.flow_breakdown.failure_paths[0]
+          ? [{ label: feature.flow_breakdown.failure_paths[0], kind: "step" as const }]
+          : []),
+        ...(feature.flow_breakdown.outputs[0]
+          ? [{ label: feature.flow_breakdown.outputs[0], kind: "step" as const }]
+          : []),
+      ],
+      tone: "warning" as const,
+    },
+  ];
+
+  return fallbackExamples
+    .map((example) => ({
+      ...example,
+      preview: normalizePreview(example.preview),
+      steps: example.steps.filter((step) => step.label).slice(0, 8),
+    }))
+    .filter((example) => example.steps.length >= 3);
+}
+
 async function runFeatureAnalysis(
   dossier: string,
   defaultSkillName: string,
@@ -528,6 +724,7 @@ function buildAnalysisResult(
         failure_paths: dedupeItems(feature.flow_breakdown.failure_paths, 8),
         outputs: dedupeItems(feature.flow_breakdown.outputs, 8),
       },
+      ui_examples: buildFeatureUiExamples(feature, language),
       mermaid: buildFeatureMermaid(feature, language),
     },
     safety_analysis: {

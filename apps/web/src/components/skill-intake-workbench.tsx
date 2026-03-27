@@ -20,36 +20,6 @@ import { FeatureTab } from "./skill-results-panel";
 const ACCEPTED_FILE_PATTERN =
   /\.(md|mdx|txt|json|ya?ml|toml|ini|cfg|conf|ts|tsx|js|jsx|mjs|cjs)$/i;
 
-const MOCK_SKILL_RESULT: ShowcaseResult = {
-  skill_name: "Larry",
-  feature_analysis: {
-    summary: "自动化 TikTok 幻灯片营销，从研究、生成到复盘迭代。",
-    failure_modes: ["产品信息不足", "配置缺失", "外部平台返回异常"],
-    outputs: ["TikTok 内容计划", "可发布素材", "复盘建议与下一轮方向"],
-  },
-  safety_analysis: {
-    risk_level: "caution",
-    is_malicious_or_unsafe: false,
-    verdict: "能力边界清楚，但依赖外部平台和密钥配置，使用前应隔离验证。",
-    findings: ["会调用外部营销与图像服务", "需要配置 Postiz 与图像生成密钥"],
-    metadata_review: ["名称与用途明确", "执行边界有说明", "来源仍需人工确认"],
-    permission_scope: ["读取本地配置", "写入报告文件", "调用外部 API"],
-    red_flags: ["依赖外部平台授权", "需要配置第三方密钥"],
-    trust_signals: ["目标清晰", "流程可审查", "输出可复盘"],
-    blocked_capabilities: ["不应读取无关目录", "不应上传未授权数据"],
-    notes: ["建议在隔离环境先验证一轮"],
-    mermaid: `flowchart TD
-    A["读取源材料"] --> B["名称与用途明确 / 执行边界有说明"]
-    B --> C["读取本地配置 / 写入报告文件"]
-    C --> D["依赖外部平台授权 / 需要第三方密钥"]
-    D --> E["目标清晰 / 流程可审查"]
-    E --> F{"是否存在明显风险？"}
-    F --> G["要求人工复核"]
-    G --> H["能力边界清楚，但依赖外部平台和密钥配置，使用前应隔离验证。"]
-    H --> I["返回安全结论"]`,
-  },
-};
-
 function toShowcaseResult(result: SkillAnalysisResult): ShowcaseResult {
   return {
     skill_name: result.skill_name,
@@ -57,6 +27,7 @@ function toShowcaseResult(result: SkillAnalysisResult): ShowcaseResult {
       summary: result.feature_analysis.summary,
       outputs: result.feature_analysis.outputs,
       failure_modes: result.feature_analysis.failure_modes,
+      ui_examples: result.feature_analysis.ui_examples,
     },
     safety_analysis: result.safety_analysis,
   };
@@ -76,7 +47,6 @@ export default function SkillIntakeWorkbench() {
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [inputTab, setInputTab] = useState<"upload" | "repo">("upload");
-  const [showMockResult, setShowMockResult] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,7 +60,6 @@ export default function SkillIntakeWorkbench() {
   });
 
   async function startUploadAnalysis(uploaded: UploadedSkillFile[]) {
-    setShowMockResult(false);
     const label = pickUploadLabel(uploaded);
 
     await analyzeSkill.mutateAsync({
@@ -232,7 +201,6 @@ export default function SkillIntakeWorkbench() {
       return;
     }
 
-    setShowMockResult(false);
     await analyzeSkill.mutateAsync({
       source: {
         kind: "repo",
@@ -247,9 +215,7 @@ export default function SkillIntakeWorkbench() {
     ? undefined
     : analyzeSkill.data
       ? toShowcaseResult(analyzeSkill.data)
-      : showMockResult
-        ? MOCK_SKILL_RESULT
-        : undefined;
+      : undefined;
   const showResultPanel = analyzeSkill.isPending || Boolean(result);
 
   return (

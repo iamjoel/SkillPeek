@@ -17,7 +17,7 @@ export type ShowcaseRiskLevel = SkillAnalysisResult["safety_analysis"]["risk_lev
 
 export type ShowcaseFeatureAnalysis = Pick<
   SkillAnalysisResult["feature_analysis"],
-  "summary" | "outputs" | "failure_modes"
+  "summary" | "outputs" | "failure_modes" | "ui_examples"
 >;
 
 export type ShowcaseSafetyAnalysis = SkillAnalysisResult["safety_analysis"];
@@ -46,7 +46,10 @@ export type FlowExample = {
   description: string;
   output: string;
   preview: string;
-  path: string[];
+  steps: Array<{
+    label: string;
+    kind: "step" | "decision";
+  }>;
   tone?: "default" | "warning";
 };
 
